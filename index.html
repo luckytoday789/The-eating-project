@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0a16" />
+    <meta
+      name="description"
+      content="结合南京邮电大学仙林校区、预算、精力与等待时间，抽一支专属于她的今日饭签。"
+    />
+    <title>饭饭签 · 今天吃什么</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230b0a16'/%3E%3Cpath d='M14 29h36c0 13-7 21-18 21S14 42 14 29Z' fill='%23ff806f'/%3E%3Cpath d='M20 24c2-7 7-10 12-10 4 0 7 2 9 5' fill='none' stroke='%23ffd58d' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='48' cy='15' r='3' fill='%23b9a7ff'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+    <div class="star-field" aria-hidden="true">
+      <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+    </div>
+
+    <main class="page-shell">
+      <header class="brand-bar">
+        <a class="brand" href="#" aria-label="饭饭签首页">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 48 48" role="img">
+              <path d="M10 23h28c0 10.5-5.7 17-14 17S10 33.5 10 23Z" />
+              <path d="M15 18c2-5.7 5.8-8.5 10-8.5 3.5 0 6.3 1.5 8 4.5" />
+              <circle cx="37" cy="9" r="2.3" />
+            </svg>
+          </span>
+          <span>饭饭签</span>
+        </a>
+        <span class="brand-note">位置已定 · 南邮仙林校区</span>
+      </header>
+
+      <section class="experience" aria-labelledby="page-title">
+        <div class="intro-copy">
+          <div class="moon-seal" aria-hidden="true">
+            <span>✦</span>
+            <svg viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="42" />
+              <path d="M61 25c-16 6-23 25-14 39 6 10 17 14 28 11-7 10-19 16-32 13-18-4-29-22-25-40 4-17 22-28 43-23Z" />
+            </svg>
+          </div>
+          <p class="eyebrow">南京 · 南邮仙林专属饭签</p>
+          <h1 id="page-title">今天，<br /><em>吃点什么好？</em></h1>
+          <p class="intro-text">
+            五步小占卜，问问心情、身体和今晚的馋意，替你抽出一顿轻松好选的饭。
+          </p>
+          <p class="micro-note"><span aria-hidden="true">⌖</span> 南京邮电大学仙林校区 · 文苑路 9 号</p>
+        </div>
+
+        <div class="oracle-wrap">
+          <section class="oracle-card" aria-live="polite">
+            <div class="progress-head">
+              <span class="step-count">01 / 05</span>
+              <span class="step-label">先听听心里怎么说</span>
+            </div>
+            <div class="progress-track" role="progressbar" aria-label="问答进度" aria-valuemin="1" aria-valuemax="5" aria-valuenow="1">
+              <span style="width: 20%"></span>
+            </div>
+
+            <div class="question-pane">
+              <p class="question-kicker">第一签 · 心情</p>
+              <h2>今天是哪一种心情？</h2>
+              <p class="question-help">跟着第一感觉选就好。</p>
+
+              <div class="choice-grid" role="group" aria-label="选择今天的心情">
+                <button class="choice" type="button" data-value="bright">
+                  <span class="choice-icon" aria-hidden="true">☀</span>
+                  <span><b>心情不错</b><small>想吃点开心的</small></span>
+                </button>
+                <button class="choice" type="button" data-value="tired">
+                  <span class="choice-icon" aria-hidden="true">☁</span>
+                  <span><b>有点疲惫</b><small>需要被治愈</small></span>
+                </button>
+                <button class="choice" type="button" data-value="blue">
+                  <span class="choice-icon" aria-hidden="true">☂</span>
+                  <span><b>小小低落</b><small>想被好好哄哄</small></span>
+                </button>
+                <button class="choice" type="button" data-value="indecisive">
+                  <span class="choice-icon" aria-hidden="true">✣</span>
+                  <span><b>选择困难</b><small>交给饭签决定</small></span>
+                </button>
+              </div>
+            </div>
+
+            <p class="auto-advance-note">点一下选项，就会自动继续</p>
+          </section>
+          <p class="privacy-note">你的回答只留在这台设备里</p>
+        </div>
+      </section>
+    </main>
+    <script src="./app.js" defer></script>
+  </body>
+</html>
+

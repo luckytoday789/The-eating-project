@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">夜色里的热汤面</title>
+  <desc id="desc">一碗在星空与暖色光晕中冒着热气的汤面插画</desc>
+  <defs>
+    <linearGradient id="night" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#171026"/><stop offset=".55" stop-color="#362044"/><stop offset="1" stop-color="#7e353f"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="#ffd58d" stop-opacity=".8"/><stop offset=".45" stop-color="#ff806f" stop-opacity=".3"/><stop offset="1" stop-color="#171026" stop-opacity="0"/></radialGradient>
+    <linearGradient id="broth" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#d88446"/><stop offset="1" stop-color="#6f302d"/></linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="18"/></filter>
+  </defs>
+  <rect width="1200" height="720" fill="url(#night)"/>
+  <circle cx="600" cy="360" r="390" fill="url(#glow)"/>
+  <g fill="#ffe8b7" opacity=".72"><circle cx="120" cy="120" r="3"/><circle cx="1040" cy="150" r="4"/><circle cx="980" cy="530" r="3"/><circle cx="210" cy="490" r="2"/><circle cx="890" cy="75" r="2"/></g>
+  <g fill="none" stroke="#f7d9ba" stroke-linecap="round" opacity=".55" filter="url(#blur)">
+    <path d="M470 235c-55-65 35-84-8-145" stroke-width="18"/><path d="M600 220c-48-72 50-94 10-158" stroke-width="20"/><path d="M725 238c-40-65 48-90 13-145" stroke-width="17"/>
+  </g>
+  <ellipse cx="600" cy="518" rx="345" ry="104" fill="#160f22" opacity=".72"/>
+  <path d="M270 375h660l-70 206c-18 55-90 92-260 92s-242-37-260-92z" fill="#24152e" stroke="#dba468" stroke-width="8"/>
+  <ellipse cx="600" cy="375" rx="330" ry="128" fill="#f0b67e" stroke="#ffd58d" stroke-width="10"/>
+  <ellipse cx="600" cy="382" rx="300" ry="105" fill="url(#broth)"/>
+  <g fill="none" stroke="#ffd39a" stroke-width="13" stroke-linecap="round" opacity=".95">
+    <path d="M355 382c80-75 165 70 250-2s170 65 247-12"/><path d="M350 410c86-68 162 66 250-3s166 61 252-7"/><path d="M385 438c70-54 145 45 216-4s144 43 218-8"/>
+  </g>
+  <g transform="translate(690 315)"><ellipse rx="82" ry="58" fill="#fff1d0"/><ellipse rx="34" ry="31" fill="#ffb33f"/></g>
+  <g fill="#73a85b"><circle cx="475" cy="330" r="24"/><circle cx="512" cy="350" r="21"/><circle cx="540" cy="323" r="19"/><circle cx="445" cy="359" r="18"/></g>
+  <g fill="#7c3f36" stroke="#eaa06f" stroke-width="4"><path d="M350 342q100-80 190-16-82 72-190 16"/><path d="M390 382q92-70 174-5-88 65-174 5"/></g>
+  <g fill="#fff4dc" opacity=".9"><circle cx="780" cy="378" r="7"/><circle cx="812" cy="355" r="6"/><circle cx="830" cy="397" r="5"/></g>
+</svg>

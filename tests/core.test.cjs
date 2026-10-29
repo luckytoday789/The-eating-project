@@ -29,12 +29,23 @@ assert.equal(merged.days['2026-10-29'].meals[0].content, 'updated');
 assert.equal(merged.days['2026-10-29'].meals.length, 1);
 assert.equal(merged.days['2026-10-28'].weight, 55.4);
 assert.deepEqual(C.mergeStores(merged, backup), merged);
+// Imported timestamps with offsets must be compared as instants, not raw text.
+const olderOffset = JSON.parse(JSON.stringify(base));
+olderOffset.days['2026-10-29'].meals[0].content = 'older offset record';
+olderOffset.days['2026-10-29'].meals[0].updatedAt = '2026-10-29T11:00:00+08:00';
+assert.equal(C.mergeStores(base, olderOffset).days['2026-10-29'].meals[0].content, '饭 <script>');
+const newerOffset = JSON.parse(JSON.stringify(base));
+newerOffset.days['2026-10-29'].meals[0].content = 'newer offset record';
+newerOffset.days['2026-10-29'].meals[0].updatedAt = '2026-10-29T01:00:00-08:00';
+assert.equal(C.mergeStores(base, newerOffset).days['2026-10-29'].meals[0].content, 'newer offset record');
+assert.equal(C.validateStore(newerOffset).days['2026-10-29'].meals[0].updatedAt, '2026-10-29T09:00:00.000Z');
 for (const mutate of [
   value => value.version = 2,
   value => value.days['2026-10-29'].weight = NaN,
   value => value.days['2026-10-29'].meals[0].type = 'unknown',
   value => value.days['2026-10-29'].meals[0].time = '25:01',
   value => value.days['2026-10-29'].activities[0].minutes = -5,
+  value => value.days['2026-10-29'].activities[0].minutes = 1.5,
   value => value.days['2026-10-29'].meals.push(value.days['2026-10-29'].meals[0]),
 ]) {
   const invalid = JSON.parse(JSON.stringify(base)); mutate(invalid);

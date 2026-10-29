@@ -30,7 +30,8 @@
   }
   function stamp(value) {
     if (typeof value !== "string" || value.length > 40 || (value && !Number.isFinite(Date.parse(value)))) throw new Error("记录时间格式不正确");
-    return value;
+    // A backup may use an offset or omit milliseconds. Normalize before comparing.
+    return value ? new Date(value).toISOString() : "";
   }
   function validateStore(input) {
     if (!input || typeof input !== "object" || input.version !== VERSION || !input.days || typeof input.days !== "object" || Array.isArray(input.days)) throw new Error("请选择由日常有迹导出的 JSON 备份");
@@ -57,6 +58,7 @@
         }),
         activities: day.activities.map((activity) => {
           if (!activity || !ACTIVITIES.includes(activity.type) || !["easy", "moderate", "hard"].includes(activity.intensity)) throw new Error("运动类型或强度不正确");
+          if (!Number.isInteger(activity.minutes)) throw new Error("运动时长请填写整分钟");
           return { id: id(activity.id), type: activity.type, minutes: number(activity.minutes, "运动时长", 1, 1440), distance: activity.distance === null || activity.distance === undefined ? null : number(activity.distance, "运动距离", 0.01, 999), intensity: activity.intensity, note: text(activity.note ?? "", "运动备注", 500), updatedAt: stamp(activity.updatedAt ?? "") };
         }),
       };

@@ -47,7 +47,7 @@
     return raw === null ? C.emptyStore() : C.validateStore(JSON.parse(raw));
   }
   try { state.store = readStorage(); } catch (error) {
-    state.storageError = "浏览器里的记录暂时无法读取。请先导出原始数据备份，再检查浏览器存储权限。现有数据未被覆盖。";
+    state.storageError = "无法读取记录，现有数据未被覆盖。请导出原始备份并检查存储权限。";
   }
   const store = () => state.demo ?? state.store;
   const day = () => store().days[state.date] ?? C.emptyDay();
@@ -73,15 +73,15 @@
       else { localStorage.setItem(STORAGE_KEY, JSON.stringify(clean)); state.store = clean; }
       return true;
     } catch (error) {
-      toast("保存失败：浏览器存储可能已满或不可用。请导出备份并检查存储权限。", true);
+      toast("保存失败：存储已满或不可用。请先备份，再检查存储权限。", true);
       return false;
     }
   }
-  function changeDay(change, message = "已保存，给生活留下一点印记") {
+  function changeDay(change, message = "已保存") {
     if (state.storageError && !state.demo) { toast("请先在「数据与备份」中处理存储问题。", true); return false; }
     let next;
     try { next = state.demo ? clone(state.demo) : readStorage(); }
-    catch { toast("无法读取现有数据，为保护记录，本次尚未保存。", true); return false; }
+    catch { toast("无法读取现有记录，本次未保存。", true); return false; }
     const record = next.days[state.date] ?? C.emptyDay();
     change(record);
     record.updatedAt = now();
@@ -90,7 +90,7 @@
     if (!persist(next)) return false;
     dialog.close();
     render();
-    toast(state.demo ? "示例已更新，仅用于体验" : message);
+    toast(state.demo ? "示例已更新" : message);
     return true;
   }
   function heroArt() {
@@ -122,18 +122,16 @@
   }
   function renderToday() {
     const record = day();
-    const dayWord = state.date === today() ? "今天" : "这天";
     const week = C.stats(store(), state.date, 7);
-    const hasToday = C.hasData(record);
     const minutes = record.activities.reduce((total, item) => total + item.minutes, 0);
-    const actions = `<button class="text-button" data-action="${state.demo ? "exit-demo" : "demo"}">${state.demo ? "返回我的记录" : "看看示例"}${icon("arrow")}</button><button class="button primary" data-action="add-meal">${icon("plus")}记饮食</button>`;
-    return header('把日子，<em>记得轻一点。</em>', "好好吃饭，动一动，也留意身体的变化。", "SMALL MOMENTS, EVERY DAY", actions) + `
-      <section class="hero"><div class="hero-copy"><p class="eyebrow">${state.date === today() ? "TODAY IS A GOOD DAY" : "A DAY TO REMEMBER"}</p><h2>${hasToday ? `${dayWord}的生活，有迹可循。` : "从一条小记录开始。"}</h2><p>${hasToday ? "每一餐、每一次活动，都值得被认真记下。" : "记下吃了什么、动了多久，慢慢了解自己的生活。"}</p><div class="hero-stats"><span>饮食 <b>${record.meals.length}</b> 条</span><span class="dot"></span><span>运动 <b>${pretty(minutes)}</b> 分钟</span><span class="dot"></span><span>体重 <b>${record.weight === null ? "待记" : `${pretty(record.weight)} kg`}</b></span></div></div>${heroArt()}</section>
+    const actions = `${state.demo ? "" : `<button class="text-button" data-action="demo">看看示例${icon("arrow")}</button>`}<div class="quick-actions" aria-label="快捷记录"><button class="button primary" data-action="add-meal">${icon("plus")}饮食</button><button class="button" data-action="weight">${icon("scale")}体重</button><button class="button" data-action="add-activity">${icon("move")}运动</button></div>`;
+    return header('日常<em>记录</em>', "饮食、体重、运动，一处记录。", "SMALL MOMENTS, EVERY DAY", actions) + `
+      <section class="hero"><div class="hero-copy"><h2>${dateLabel(state.date, true)}${state.date === today() ? '<span class="hero-today">今天</span>' : ''}</h2><div class="hero-stats"><div class="hero-metric"><span>饮食记录</span><b>${record.meals.length}<small>条</small></b></div><div class="hero-metric"><span>运动时长</span><b>${pretty(minutes)}<small>分钟</small></b></div><div class="hero-metric"><span>体重</span><b>${record.weight === null ? '—' : pretty(record.weight)}<small>kg</small></b></div></div></div>${heroArt()}</section>
       <div class="date-toolbar"><div class="date-control"><button class="icon-button" data-action="prev-day" aria-label="前一天">${icon("left")}</button><label class="date-input-wrap">${icon("calendar")}<input class="date-input" id="selected-date" type="date" value="${state.date}" min="1900-01-01" max="${today()}" aria-label="选择记录日期"></label><button class="icon-button" data-action="next-day" aria-label="后一天" ${state.date >= today() ? "disabled" : ""}>${icon("right")}</button><button class="today-tag" data-action="today">今天</button></div><span class="local-note">${icon("shield")}${state.demo ? "示例数据" : "仅保存在此浏览器"}</span></div>
       ${weekStrip()}
-      <div class="dashboard"><div class="column"><section class="panel meals-panel"><div class="panel-head"><div class="panel-heading"><span class="section-icon">${icon("bowl")}</span><div><h2>饮食记录</h2><p>一日三餐，也记下小小的加餐</p></div></div><span class="local-note">${record.meals.length} 条记录</span></div>${renderMeals(record)}<div class="panel-footnote">${icon("leaf")}不用计算每一口，先把生活记下来。</div></section><section class="panel note-panel"><div class="panel-head"><div class="panel-heading"><span class="section-icon">${icon("note")}</span><div><h2>留一句给这一天</h2><p>心情、感受，或者一件小事</p></div></div><button class="tiny-button" data-action="note" aria-label="编辑当日备注">${icon("edit")}</button></div>${record.note ? `<p class="daily-note">${esc(record.note)}</p>` : '<p class="empty-note">比如：今天和喜欢的人一起吃了晚饭。</p>'}</section></div>
-      <div class="column">${renderWeight(record)}<section class="panel activity-panel"><div class="panel-head"><div class="panel-heading"><span class="section-icon orange">${icon("move")}</span><div><h2>让身体动一动</h2><p>散步、训练，每一种活动都算数</p></div></div><button class="round-add" data-action="add-activity" aria-label="记录运动">${icon("plus")}</button></div><div class="activity-summary"><strong>${pretty(minutes)}</strong><span>分钟 · ${record.activities.length} 次活动</span></div>${record.activities.length ? record.activities.map(activityEntry).join("") : `<div class="activity-empty"><span class="section-icon orange">${icon("move")}</span><p>还没有运动记录<br>散步十分钟，也是一份小小的积累。</p></div>`}<button class="text-button" data-action="add-activity" style="margin-top:16px">${icon("plus")}记录一次运动</button></section></div></div>
-      <div class="section-label">最近 7 天 · 截至 ${dateLabel(state.date)}</div><section class="week-overview" aria-label="最近七天统计">${summaryCard(icon("journal"), week.days, "天", "留下记录的日子")}${summaryCard(icon("bowl"), week.meals, "条", "用餐记录")}${summaryCard(icon("move"), pretty(week.minutes), "分钟", "累计运动时长")}</section>`;
+      <div class="dashboard"><div class="column"><section class="panel meals-panel"><div class="panel-head"><div class="panel-heading"><span class="section-icon">${icon("bowl")}</span><div><h2>饮食记录</h2><p>三餐与加餐</p></div></div><span class="local-note">${record.meals.length} 条记录</span></div>${renderMeals(record)}<div class="panel-footnote">${icon("leaf")}支持补记、编辑与删除</div></section><section class="panel note-panel"><div class="panel-head"><div class="panel-heading"><span class="section-icon">${icon("note")}</span><div><h2>当日备注</h2><p></p></div></div><button class="tiny-button" data-action="note" aria-label="编辑当日备注">${icon("edit")}</button></div>${record.note ? `<p class="daily-note">${esc(record.note)}</p>` : '<p class="empty-note">点击右上角添加备注</p>'}</section></div>
+      <div class="column">${renderWeight(record)}<section class="panel activity-panel"><div class="panel-head"><div class="panel-heading"><span class="section-icon orange">${icon("move")}</span><div><h2>运动记录</h2><p></p></div></div><button class="round-add" data-action="add-activity" aria-label="记录运动">${icon("plus")}</button></div><div class="activity-summary"><strong>${pretty(minutes)}</strong><span>分钟 · ${record.activities.length} 次活动</span></div>${record.activities.length ? record.activities.map(activityEntry).join("") : `<div class="activity-empty"><span class="section-icon orange">${icon("move")}</span><p>暂无运动记录<br>点击下方添加</p></div>`}<button class="text-button" data-action="add-activity" style="margin-top:16px">${icon("plus")}添加运动</button></section></div></div>
+      <div class="section-label">最近 7 天 · 截至 ${dateLabel(state.date)}</div><section class="week-overview" aria-label="最近七天统计">${summaryCard(icon("journal"), week.days, "天", "记录天数")}${summaryCard(icon("bowl"), week.meals, "条", "用餐记录")}${summaryCard(icon("move"), pretty(week.minutes), "分钟", "累计运动时长")}</section>`;
   }
   function summaryCard(symbol, value, unit, label) {
     return `<div class="overview-card"><span class="section-icon">${symbol}</span><div><b>${value}<small>${unit}</small></b><p>${label}</p></div></div>`;
@@ -141,21 +139,21 @@
   function renderMeals(record) {
     return Object.entries(mealTypes).map(([type, [name, english, symbol]]) => {
       const entries = record.meals.filter((meal) => meal.type === type).sort((a, b) => a.time.localeCompare(b.time));
-      return `<div class="meal-section"><span class="meal-badge ${type}">${icon(symbol)}</span><div><div class="meal-heading"><h3>${name}<small>${english}</small></h3><button class="meal-add" data-action="add-meal" data-type="${type}" aria-label="添加${name}">${icon("plus")}记一笔</button></div>${entries.length ? entries.map((meal) => `<article class="meal-entry"><div class="entry-content"><p class="entry-title">${esc(meal.content)}</p><div class="entry-meta"><span>${esc(meal.time)}</span>${meal.portion ? `<span>${esc(meal.portion)}</span>` : ""}</div></div><div class="entry-actions"><button class="tiny-button" data-action="edit-meal" data-id="${esc(meal.id)}" aria-label="编辑${esc(name)}：${esc(meal.content)}">${icon("edit")}</button><button class="tiny-button" data-action="delete-meal" data-id="${esc(meal.id)}" aria-label="删除${esc(name)}：${esc(meal.content)}">${icon("trash")}</button></div></article>`).join("") : `<button class="meal-empty" data-action="add-meal" data-type="${type}">${type === "snack" ? "水果、酸奶，或今天的快乐小点心…" : `还没记${name}，点这里写下吃了什么…`}</button>`}</div></div>`;
+      return `<div class="meal-section"><span class="meal-badge ${type}">${icon(symbol)}</span><div><div class="meal-heading"><h3>${name}<small>${english}</small></h3><button class="meal-add" data-action="add-meal" data-type="${type}" aria-label="添加${name}">${icon("plus")}记一笔</button></div>${entries.length ? entries.map((meal) => `<article class="meal-entry"><div class="entry-content"><p class="entry-title">${esc(meal.content)}</p><div class="entry-meta"><span>${esc(meal.time)}</span>${meal.portion ? `<span>${esc(meal.portion)}</span>` : ""}</div></div><div class="entry-actions"><button class="tiny-button" data-action="edit-meal" data-id="${esc(meal.id)}" aria-label="编辑${esc(name)}：${esc(meal.content)}">${icon("edit")}</button><button class="tiny-button" data-action="delete-meal" data-id="${esc(meal.id)}" aria-label="删除${esc(name)}：${esc(meal.content)}">${icon("trash")}</button></div></article>`).join("") : `<button class="meal-empty" data-action="add-meal" data-type="${type}">${type === "snack" ? "点击添加加餐" : `点击添加${name}`}</button>`}</div></div>`;
     }).join("");
   }
   function renderWeight(record) {
     const previous = Object.entries(store().days).filter(([date, entry]) => date < state.date && entry.weight !== null).sort(([a], [b]) => b.localeCompare(a))[0];
     const difference = record.weight !== null && previous ? record.weight - previous[1].weight : null;
-    const comparison = record.weight === null ? "用自己的节奏，观察身体的变化。" : difference === null ? "第一笔体重，新的观察起点。" : `较 ${dateLabel(previous[0])} ${difference === 0 ? "持平" : `${difference > 0 ? "+" : ""}${pretty(difference)} kg`}`;
+    const comparison = record.weight === null ? "尚未记录" : difference === null ? "首次记录" : `较 ${dateLabel(previous[0])} ${difference === 0 ? "持平" : `${difference > 0 ? "+" : ""}${pretty(difference)} kg`}`;
     const points = C.stats(store(), state.date, 30).weights;
-    return `<section class="panel weight-panel"><div class="panel-head"><div class="panel-heading"><span class="section-icon">${icon("scale")}</span><div><h2>体重小记</h2><p>看看自己的变化</p></div></div>${record.weight !== null ? `<button class="tiny-button" data-action="delete-weight" aria-label="删除当天体重">${icon("trash")}</button>` : ""}</div><p class="weight-main"><span class="weight-number">${record.weight === null ? "— —" : pretty(record.weight)}</span><span class="weight-unit">kg</span></p><p class="weight-comparison">${esc(comparison)}</p><button class="button" data-action="weight">${icon(record.weight === null ? "plus" : "edit")}${record.weight === null ? "记一下体重" : "修改当天体重"}</button><div class="mini-chart">${points.length > 1 ? weightChart(points, C.addDays(state.date, -29), state.date, true) : '<div class="mini-chart-empty">记录两次体重后，<br>在这里看到变化。</div>'}</div></section>`;
+    return `<section class="panel weight-panel"><div class="panel-head"><div class="panel-heading"><span class="section-icon">${icon("scale")}</span><div><h2>体重记录</h2><p></p></div></div>${record.weight !== null ? `<button class="tiny-button" data-action="delete-weight" aria-label="删除当天体重">${icon("trash")}</button>` : ""}</div><p class="weight-main"><span class="weight-number">${record.weight === null ? "— —" : pretty(record.weight)}</span><span class="weight-unit">kg</span></p><p class="weight-comparison">${esc(comparison)}</p><button class="button" data-action="weight">${icon(record.weight === null ? "plus" : "edit")}${record.weight === null ? "记录体重" : "修改体重"}</button><div class="mini-chart">${points.length > 1 ? weightChart(points, C.addDays(state.date, -29), state.date, true) : '<div class="mini-chart-empty">记录 2 次后，<br>显示变化趋势</div>'}</div></section>`;
   }
   function activityEntry(activity) {
     return `<article class="activity-entry"><span class="activity-icon">${icon(activityTypes[activity.type][1])}</span><div class="entry-content"><p class="entry-title">${activityTypes[activity.type][0]}</p><div class="entry-meta"><span>${pretty(activity.minutes)} 分钟</span><span>${intensities[activity.intensity]}</span>${activity.distance !== null ? `<span>${pretty(activity.distance)} km</span>` : ""}</div>${activity.note ? `<p class="entry-title" style="color:#8b9880;font-weight:400;font-size:10px;margin-top:7px">${esc(activity.note)}</p>` : ""}</div><div class="entry-actions"><button class="tiny-button" data-action="edit-activity" data-id="${esc(activity.id)}" aria-label="编辑${activityTypes[activity.type][0]}记录">${icon("edit")}</button><button class="tiny-button" data-action="delete-activity" data-id="${esc(activity.id)}" aria-label="删除${activityTypes[activity.type][0]}记录">${icon("trash")}</button></div></article>`;
   }
   function weightChart(points, start, end, small = false) {
-    const width = small ? 320 : 1000, height = small ? 90 : 240;
+    const width = small || window.matchMedia("(max-width: 720px)").matches ? 320 : 1000, height = small ? 90 : 240;
     const left = small ? 4 : 44, right = small ? 4 : 20, top = small ? 8 : 25, bottom = small ? 5 : 34;
     const values = points.map((point) => point.value), low = Math.min(...values), high = Math.max(...values);
     const padding = Math.max(.4, (high - low) * .25), min = low - padding, max = high + padding;
@@ -184,23 +182,23 @@
       bars.push({ start, end, value });
     }
     const maxMinutes = Math.max(10, ...bars.map((bar) => bar.value));
-    return header('每一点变化，<em>都有迹可循。</em>', `回看 ${dateLabel(stats.start)} 至 ${dateLabel(state.date)} 的生活记录。`, "LOOK BACK, AT YOUR OWN PACE", controls, "trends-intro") + `
+    return header('记录<em>趋势</em>', `回看 ${dateLabel(stats.start)} 至 ${dateLabel(state.date)} 的生活记录。`, "LOOK BACK, AT YOUR OWN PACE", controls, "trends-intro") + `
       <section class="trend-summary">${summaryCard("", stats.days, "天", "有记录的日子")}${summaryCard("", stats.meals, "条", "饮食记录")}${summaryCard("", pretty(stats.minutes), "分钟", "累计运动")}${summaryCard("", weights.length, "次", "体重记录")}</section>
-      <section class="panel chart-panel"><div class="panel-head"><div class="panel-heading"><span class="section-icon">${icon("scale")}</span><div><h2>体重的变化</h2><p>每一个点，都是一次真实记录</p></div></div><button class="text-button" data-action="weight">记体重 ${icon("plus")}</button></div>${weights.length ? `<p class="chart-title-value">${pretty(weights.at(-1).value)} <small>kg · 区间最新</small><span>${delta === null ? "再记一次，即可比较" : `区间变化 ${delta > 0 ? "+" : ""}${pretty(delta)} kg`}</span></p><div class="chart-area">${weightChart(weights, stats.start, state.date)}</div><details class="chart-data"><summary>查看体重明细 · ${weights.length} 次</summary><table><thead><tr><th scope="col">日期</th><th scope="col">体重（kg）</th></tr></thead><tbody>${weights.map((point) => `<tr><td>${point.date}</td><td>${pretty(point.value)}</td></tr>`).join("")}</tbody></table></details>` : `<div class="chart-empty">${icon("chart")}<p>趋势从第一笔记录开始。<br>先记下今天的体重吧。</p><button class="button soft" data-action="weight">${icon("plus")}记录体重</button></div>`}</section>
-      <div class="trends-grid"><section class="panel"><div class="panel-head"><div class="panel-heading"><span class="section-icon orange">${icon("move")}</span><div><h2>活动的积累</h2><p>${state.range === 7 ? "每日运动时长" : "按 7 天分组，最后一组可能不足 7 天"}</p></div></div><span class="local-note">分钟</span></div><div class="bar-chart movement-chart" role="img" aria-label="${esc(bars.map((bar) => `${bar.start} 至 ${bar.end}：${pretty(bar.value)} 分钟`).join("；"))}">${bars.map((bar) => `<div class="bar-item" title="${bar.start} 至 ${bar.end}：${pretty(bar.value)} 分钟">${bar.value ? `<b>${pretty(bar.value)}</b>` : ""}<i style="height:${bar.value / maxMinutes * 75}%"></i><span>${bar.start.slice(5).replace("-", "/")}</span></div>`).join("")}</div><p class="range-note">共 ${stats.sessions} 次活动，累计 ${pretty(stats.minutes)} 分钟。</p></section>
-      <section class="panel"><div class="panel-head"><div class="panel-heading"><span class="section-icon">${icon("bowl")}</span><div><h2>饮食记录分布</h2><p>记录次数，不代表饮食比例</p></div></div></div><div class="meal-breakdown">${C.MEALS.map((type) => `<div class="breakdown-row"><span>${mealTypes[type][0]}</span><div class="breakdown-track"><i style="width:${countByMeal[type] / maxMeal * 100}%"></i></div><span>${countByMeal[type]} 条</span></div>`).join("")}</div></section></div><p class="range-note">统计截至 ${state.date}。要查看其他日期，请在「每日记录」中选择日期。没有记录的体重日期不会自动补值。</p>`;
+      <section class="panel chart-panel"><div class="panel-head"><div class="panel-heading"><span class="section-icon">${icon("scale")}</span><div><h2>体重趋势</h2><p></p></div></div><button class="text-button" data-action="weight">记体重 ${icon("plus")}</button></div>${weights.length ? `<p class="chart-title-value">${pretty(weights.at(-1).value)} <small>kg · 区间最新</small><span>${delta === null ? "记录 2 次后可比较" : `区间变化 ${delta > 0 ? "+" : ""}${pretty(delta)} kg`}</span></p><div class="chart-area">${weightChart(weights, stats.start, state.date)}</div><details class="chart-data"><summary>查看体重明细 · ${weights.length} 次</summary><table><thead><tr><th scope="col">日期</th><th scope="col">体重（kg）</th></tr></thead><tbody>${weights.map((point) => `<tr><td>${point.date}</td><td>${pretty(point.value)}</td></tr>`).join("")}</tbody></table></details>` : `<div class="chart-empty">${icon("chart")}<p>暂无体重记录</p><button class="button soft" data-action="weight">${icon("plus")}记录体重</button></div>`}</section>
+      <div class="trends-grid"><section class="panel"><div class="panel-head"><div class="panel-heading"><span class="section-icon orange">${icon("move")}</span><div><h2>运动时长</h2><p>${state.range === 7 ? "每日运动时长" : "按 7 天分组，最后一组可能不足 7 天"}</p></div></div><span class="local-note">分钟</span></div><div class="bar-chart movement-chart" role="img" aria-label="${esc(bars.map((bar) => `${bar.start} 至 ${bar.end}：${pretty(bar.value)} 分钟`).join("；"))}">${bars.map((bar, index) => `<div class="bar-item" title="${bar.start} 至 ${bar.end}：${pretty(bar.value)} 分钟">${bar.value ? `<b>${pretty(bar.value)}</b>` : ""}<i style="height:${bar.value / maxMinutes * 75}%"></i><span>${state.range === 90 && index % 2 ? "" : bar.start.slice(5).replace("-", "/")}</span></div>`).join("")}</div><p class="range-note">共 ${stats.sessions} 次活动，累计 ${pretty(stats.minutes)} 分钟。</p></section>
+      <section class="panel"><div class="panel-head"><div class="panel-heading"><span class="section-icon">${icon("bowl")}</span><div><h2>饮食记录分布</h2><p>次数统计，非摄入比例</p></div></div></div><div class="meal-breakdown">${C.MEALS.map((type) => `<div class="breakdown-row"><span>${mealTypes[type][0]}</span><div class="breakdown-track"><i style="width:${countByMeal[type] / maxMeal * 100}%"></i></div><span>${countByMeal[type]} 条</span></div>`).join("")}</div></section></div><p class="range-note">统计截至 ${state.date}。要查看其他日期，请在「每日记录」中选择日期。没有记录的体重日期不会自动补值。</p>`;
   }
   function renderHistory() {
     const start = `${state.month}-01`;
     const leading = (new Date(`${start}T12:00:00`).getDay() + 6) % 7;
     const last = new Date(Number(state.month.slice(0, 4)), Number(state.month.slice(5)), 0).getDate();
     const entries = Object.entries(store().days).filter(([date, entry]) => date.startsWith(state.month) && C.hasData(entry)).sort(([a], [b]) => b.localeCompare(a));
-    return header('回到那一天，<em>看看生活。</em>', "点击日期查看、补记或修改当天的饮食、体重和运动。", "EVERY DAY TELLS A STORY") + `
+    return header('记录<em>日历</em>', "选择日期，查看或补记。", "EVERY DAY TELLS A STORY") + `
       <div class="history-layout"><section class="panel"><div class="calendar-controls"><button class="icon-button" data-action="prev-month" aria-label="上个月" ${state.month <= "1900-01" ? "disabled" : ""}>${icon("left")}</button><h2>${state.month.slice(0, 4)} 年 ${Number(state.month.slice(5))} 月</h2><button class="icon-button" data-action="next-month" aria-label="下个月" ${state.month >= today().slice(0, 7) ? "disabled" : ""}>${icon("right")}</button><button class="text-button" data-action="current-month" style="margin-left:auto">本月</button></div><div class="calendar-weekdays">${[..."一二三四五六日"].map((label) => `<span>${label}</span>`).join("")}</div><div class="calendar-grid">${"<span></span>".repeat(leading)}${Array.from({ length: last }, (_, index) => {
         const date = `${state.month}-${String(index + 1).padStart(2, "0")}`, has = C.hasData(store().days[date]);
         return `<button class="calendar-day${has ? " has-data" : ""}${date === today() ? " is-today" : ""}${date === state.date ? " active" : ""}" data-date="${date}" data-open-day="true" aria-label="${dateLabel(date)}，${has ? "有记录" : "暂无记录"}" ${date > today() ? "disabled" : ""}>${index + 1}${has ? "<span></span>" : ""}</button>`;
       }).join("")}</div><p class="calendar-legend"><i></i>有记录的日子 <span style="margin-left:auto">本月 ${entries.length} 天</span></p></section>
-      <section class="panel"><div class="panel-head"><div class="panel-heading"><span class="section-icon">${icon("journal")}</span><div><h2>这个月的记录</h2><p>每个小小片段，都帮你了解自己</p></div></div></div><div class="history-list">${entries.length ? entries.map(([date, entry]) => `<button class="history-row" data-date="${date}" data-open-day="true"><span><strong>${dateLabel(date, true)}</strong><small>饮食 ${entry.meals.length} 条 · 运动 ${pretty(entry.activities.reduce((sum, activity) => sum + activity.minutes, 0))} 分钟${entry.weight !== null ? ` · ${pretty(entry.weight)} kg` : ""}${!entry.meals.length && !entry.activities.length && entry.weight === null ? " · 有当日备注" : ""}</small></span>${icon("right")}</button>`).join("") : '<div class="empty-history">这个月还没有记录。<br>选一天，写下你的第一笔吧。</div>'}</div></section></div>`;
+      <section class="panel"><div class="panel-head"><div class="panel-heading"><span class="section-icon">${icon("journal")}</span><div><h2>本月记录</h2><p></p></div></div></div><div class="history-list">${entries.length ? entries.map(([date, entry]) => `<button class="history-row" data-date="${date}" data-open-day="true"><span><strong>${dateLabel(date, true)}</strong><small>饮食 ${entry.meals.length} 条 · 运动 ${pretty(entry.activities.reduce((sum, activity) => sum + activity.minutes, 0))} 分钟${entry.weight !== null ? ` · ${pretty(entry.weight)} kg` : ""}${!entry.meals.length && !entry.activities.length && entry.weight === null ? " · 有当日备注" : ""}</small></span>${icon("right")}</button>`).join("") : '<div class="empty-history">本月暂无记录<br>选择日期添加</div>'}</div></section></div>`;
   }
 
   function showDialog(title, description, body) {
@@ -217,18 +215,18 @@
     const hour = new Date().getHours();
     const inferred = hour < 10 ? "breakfast" : hour < 15 ? "lunch" : hour < 21 ? "dinner" : "snack";
     const meal = existing ?? { type: type || inferred, content: "", portion: "", time: state.date === today() ? new Date().toTimeString().slice(0, 5) : ({ breakfast: "08:00", lunch: "12:00", dinner: "18:00", snack: "15:00" }[type || inferred]) };
-    showDialog(existing ? "编辑这顿饭" : "记下一顿好好吃的饭", `${dateLabel(state.date, true)} · 简单写下就很好`, `<form id="record-form" data-kind="meal" data-id="${esc(existing?.id || "")}"><div class="field-row"><label class="field">餐次<select name="type">${options(Object.entries(mealTypes).map(([key, value]) => [key, value[0]]), meal.type)}</select></label><label class="field">用餐时间<input type="time" name="time" value="${esc(meal.time)}" required></label></div><label class="field">吃了什么<textarea name="content" maxlength="500" placeholder="比如：番茄鸡蛋面、一杯牛奶" required autofocus>${esc(meal.content)}</textarea></label><label class="field">大概分量<small>选填</small><input name="portion" maxlength="100" placeholder="比如：一碗、两个、小份" value="${esc(meal.portion)}"></label>${formActions()}</form>`);
+    showDialog(existing ? "编辑饮食" : "添加饮食", `${dateLabel(state.date, true)}`, `<form id="record-form" data-kind="meal" data-id="${esc(existing?.id || "")}"><div class="field-row"><label class="field">餐次<select name="type">${options(Object.entries(mealTypes).map(([key, value]) => [key, value[0]]), meal.type)}</select></label><label class="field">用餐时间<input type="time" name="time" value="${esc(meal.time)}" required></label></div><label class="field">吃了什么<textarea name="content" maxlength="500" placeholder="比如：番茄鸡蛋面、一杯牛奶" required autofocus>${esc(meal.content)}</textarea></label><label class="field">分量<small>选填</small><input name="portion" maxlength="100" placeholder="比如：一碗、两个、小份" value="${esc(meal.portion)}"></label>${formActions()}</form>`);
   }
   function weightEditor() {
-    showDialog(state.date === today() ? "记一下今天的体重" : "记下这一天的体重", `${dateLabel(state.date, true)} · 每天可记录一个数值`, `<form id="record-form" data-kind="weight"><label class="field">体重 <small>kg / 千克</small><input class="weight-input" type="number" name="weight" min="1" max="500" step="0.01" inputmode="decimal" placeholder="例如 55.2" value="${day().weight ?? ""}" required autofocus></label><p class="field-help">尽量在相近的时间、相似的状态下记录，方便自己回看。</p>${formActions("保存体重")}</form>`);
+    showDialog("记录体重", `${dateLabel(state.date, true)} · 每天一个数值`, `<form id="record-form" data-kind="weight"><label class="field">体重 <small>kg / 千克</small><input class="weight-input" type="number" name="weight" min="1" max="500" step="0.01" inputmode="decimal" placeholder="例如 55.2" value="${day().weight ?? ""}" required autofocus></label><p class="field-help">尽量在相近时间、相似状态下称重。</p>${formActions("保存体重")}</form>`);
   }
   function activityEditor(id) {
     const existing = id ? day().activities.find((item) => item.id === id) : null;
     const activity = existing ?? { type: "walk", minutes: "", intensity: "easy", distance: null, note: "" };
-    showDialog(existing ? "编辑这次运动" : "记录一次身体的活动", `${dateLabel(state.date, true)} · 按照自己的节奏`, `<form id="record-form" data-kind="activity" data-id="${esc(existing?.id || "")}"><label class="field">活动类型<select name="type">${options(Object.entries(activityTypes).map(([key, value]) => [key, value[0]]), activity.type)}</select></label><div class="field-row"><label class="field">时长<small>分钟</small><input name="minutes" type="number" min="1" max="1440" step="1" inputmode="numeric" placeholder="例如 30" value="${activity.minutes}" required autofocus></label><label class="field">身体感觉<select name="intensity">${options(Object.entries(intensities), activity.intensity)}</select></label></div><label class="field">距离<small>km · 选填</small><input type="number" name="distance" min="0.01" max="999" step="0.01" inputmode="decimal" placeholder="步行、跑步或骑行时可以填写" value="${activity.distance ?? ""}"></label><label class="field">留一点备注<small>选填</small><textarea name="note" maxlength="500" placeholder="比如：晚饭后绕操场走了几圈">${esc(activity.note)}</textarea></label>${formActions()}</form>`);
+    showDialog(existing ? "编辑运动" : "添加运动", `${dateLabel(state.date, true)}`, `<form id="record-form" data-kind="activity" data-id="${esc(existing?.id || "")}"><label class="field">活动类型<select name="type">${options(Object.entries(activityTypes).map(([key, value]) => [key, value[0]]), activity.type)}</select></label><div class="field-row"><label class="field">时长<small>分钟</small><input name="minutes" type="number" min="1" max="1440" step="1" inputmode="numeric" placeholder="例如 30" value="${activity.minutes}" required autofocus></label><label class="field">身体感觉<select name="intensity">${options(Object.entries(intensities), activity.intensity)}</select></label></div><label class="field">距离<small>km · 选填</small><input type="number" name="distance" min="0.01" max="999" step="0.01" inputmode="decimal" placeholder="步行、跑步、骑行等" value="${activity.distance ?? ""}"></label><label class="field">备注<small>选填</small><textarea name="note" maxlength="500" placeholder="比如：晚饭后绕操场走了几圈">${esc(activity.note)}</textarea></label>${formActions()}</form>`);
   }
   function noteEditor() {
-    showDialog("留一句给这一天", `${dateLabel(state.date, true)}`, `<form id="record-form" data-kind="note"><label class="field">今天的小小片段<textarea name="note" maxlength="1000" rows="5" placeholder="写下今天的心情或感受…" autofocus>${esc(day().note)}</textarea></label>${formActions()}</form>`);
+    showDialog("当日备注", `${dateLabel(state.date, true)}`, `<form id="record-form" data-kind="note"><label class="field">备注<textarea name="note" maxlength="1000" rows="5" placeholder="心情、身体感受或其他…" autofocus>${esc(day().note)}</textarea></label>${formActions()}</form>`);
   }
   function deleteEditor(kind, id) {
     const record = day();
@@ -242,7 +240,7 @@
     if (state.demo) { showDialog("你正在查看示例", "示例中的数据独立存放，不会进入你的日常记录。", '<p class="notice">返回自己的记录后，即可导出或恢复个人备份。</p><div class="form-actions"><button class="button primary" data-action="exit-demo">返回我的记录</button></div>'); return; }
     const entries = Object.values(state.store.days);
     const total = entries.reduce((sum, entry) => sum + entry.meals.length + entry.activities.length + (entry.weight !== null ? 1 : 0), 0);
-    showDialog("记录归你，安心收好", "数据与备份", `<p class="notice">你的饮食、体重和运动数据仅保存在当前浏览器，不会上传到网站或 GitHub。不同手机、浏览器之间不会自动同步；清理浏览器数据或使用无痕模式可能丢失记录。</p><div class="data-stats"><span><strong>${entries.length}</strong> 天记录</span><span><strong>${total}</strong> 条饮食 / 运动 / 体重</span></div><section class="data-card"><h3>留一份备份</h3><p>下载 JSON 文件，换设备时也能带走。建议定期备份。</p><button class="button soft" data-action="export">${icon("download")}导出我的记录</button></section><section class="data-card"><h3>从备份恢复</h3><p>合并已有记录，重复编号不再新增；同一天已有的体重与备注会保留。不会清空现在的记录。</p><label class="button" for="import-file">${icon("upload")}选择 JSON 备份</label><input id="import-file" class="data-native-input" type="file" accept="application/json,.json" aria-label="选择日常有迹备份文件"></section>${state.storageError ? '<button class="text-button" data-action="raw-backup">导出无法读取的原始数据</button>' : ""}<p class="notice">这是个人记录工具。网站公开访问，不等于你的记录公开。</p>`);
+    showDialog("数据与备份", "", `<p class="notice">你的饮食、体重和运动数据仅保存在当前浏览器，不会上传到网站或 GitHub。不同手机、浏览器之间不会自动同步；清理浏览器数据或使用无痕模式可能丢失记录。</p><div class="data-stats"><span><strong>${entries.length}</strong> 天记录</span><span><strong>${total}</strong> 条饮食 / 运动 / 体重</span></div><section class="data-card"><h3>导出备份</h3><p>导出 JSON 文件，可在其他设备恢复。</p><button class="button soft" data-action="export">${icon("download")}导出我的记录</button></section><section class="data-card"><h3>导入备份</h3><p>重复记录会合并，保留本机已有的体重与备注，不清空记录。</p><label class="button" for="import-file">${icon("upload")}选择 JSON 备份</label><input id="import-file" class="data-native-input" type="file" accept="application/json,.json" aria-label="选择日常有迹备份文件"></section>${state.storageError ? '<button class="text-button" data-action="raw-backup">导出无法读取的原始数据</button>' : ""}<p class="notice">公开的是网站，个人记录只在本机。</p>`);
   }
   function download(content, filename) {
     const blob = new Blob([content], { type: "application/json;charset=utf-8" });
@@ -255,7 +253,7 @@
     try {
       const current = readStorage();
       download(JSON.stringify({ ...current, exportedAt: now(), app: "日常有迹" }, null, 2), `日常有迹-备份-${today()}.json`);
-      toast("已发起下载，请保存好备份文件");
+      toast("已开始下载备份");
     } catch { toast("当前记录读取失败，请先导出原始数据。", true); }
   }
   async function importRecords(file) {
@@ -267,7 +265,7 @@
       const count = Object.keys(imported.days).length;
       if (!count) throw new Error("这份备份里还没有记录");
       state.pendingImport = imported;
-      showDialog("将备份带回来", "请确认后再合并到当前浏览器", `<div class="import-confirm">这份文件包含 <strong>${count} 天</strong>的记录。<br>相同编号会合并，同一天已有的体重和备注会保留。</div><div class="form-actions"><button class="button" data-action="close-dialog">暂不恢复</button><button class="button primary" data-action="confirm-import">确认合并</button></div>`);
+      showDialog("导入备份", "合并到当前浏览器", `<div class="import-confirm">这份文件包含 <strong>${count} 天</strong>的记录。<br>相同编号会合并，同一天已有的体重和备注会保留。</div><div class="form-actions"><button class="button" data-action="close-dialog">暂不恢复</button><button class="button primary" data-action="confirm-import">确认合并</button></div>`);
     } catch (error) { toast(`无法导入：${error instanceof SyntaxError ? "文件不是有效的 JSON 备份" : error.message}`, true); }
   }
   function demoStore() {
@@ -335,7 +333,7 @@
         } catch (error) { toast(`合并失败：${error.message}`, true); }
         break;
       }
-      case "demo": state.demo = demoStore(); state.date = today(); state.month = today().slice(0, 7); render(); toast("正在查看示例，不会影响你的记录"); break;
+      case "demo": state.demo = demoStore(); state.date = today(); state.month = today().slice(0, 7); render(); toast("示例模式，不影响个人记录"); break;
       case "exit-demo": state.demo = null; state.date = today(); state.month = today().slice(0, 7); dialog.close(); render(); break;
     }
   });
@@ -352,14 +350,14 @@
     const error = $("#form-error", form);
     const fail = (message) => { error.textContent = message; error.hidden = false; };
     if (kind === "meal") {
-      if (!values.content.trim()) { fail("写下吃了什么，再保存这顿饭吧。"); return; }
+      if (!values.content.trim()) { fail("请填写饮食内容。"); return; }
       const meal = { id: form.dataset.id || uid(), type: values.type, time: values.time, content: values.content.trim(), portion: values.portion.trim(), updatedAt: now() };
       changeDay((entry) => { const index = entry.meals.findIndex((item) => item.id === meal.id); if (index < 0) entry.meals.push(meal); else entry.meals[index] = meal; });
     }
     if (kind === "weight") {
       const weight = Number(values.weight);
       if (!values.weight.trim() || !Number.isFinite(weight) || weight < 1 || weight > 500) { fail("请输入有效体重，单位为 kg。"); return; }
-      changeDay((entry) => { entry.weight = weight; }, "这一天的体重已记下");
+      changeDay((entry) => { entry.weight = weight; }, "体重已保存");
     }
     if (kind === "activity") {
       const minutes = Number(values.minutes), distance = values.distance.trim() ? Number(values.distance) : null;
@@ -375,6 +373,9 @@
     render();
     main.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: "auto" });
+  });
+  window.matchMedia("(max-width: 720px)").addEventListener("change", () => {
+    if (!dialog.open) render();
   });
   window.addEventListener("storage", (event) => {
     if (event.key !== STORAGE_KEY && event.key !== null) return;

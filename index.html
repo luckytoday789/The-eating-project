@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f7f8f2">
+  <meta name="theme-color" content="#f6f5ef">
   <meta name="description" content="轻松记录每天的饮食、体重和运动，回看自己的生活节奏。数据保存在当前浏览器，支持导出备份。">
   <meta name="color-scheme" content="light">
   <title>日常有迹 · 饮食、体重与运动记录</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='20' fill='%232b5547'/%3E%3Cpath d='M15 31h34c0 12-6 20-17 20S15 43 15 31' fill='%23e3efad'/%3E%3Cpath d='M32 27c-2-12 6-17 14-17-1 10-5 17-14 17' fill='%23e3efad'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="./styles.css">
-  <script src="./core.js" defer></script>
-  <script src="./app.js" defer></script>
+  <link rel="stylesheet" href="./styles.css?v=20261030">
+  <script src="./core.js?v=20261030" defer></script>
+  <script src="./app.js?v=20261030" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">跳到主要内容</a>
@@ -26,9 +26,9 @@
     </nav>
     <button class="button header-data" type="button" data-action="data"><span data-icon="shield"></span><span>数据与备份</span></button>
   </header>
-  <div id="demo-banner" class="demo-banner" hidden>正在浏览示例，所有数字都是演示数据。<button type="button" data-action="exit-demo">返回我的记录 <span aria-hidden="true">↗</span></button></div>
+  <div id="demo-banner" class="demo-banner" hidden>示例模式 · 不影响个人记录<button type="button" data-action="exit-demo">退出示例 <span aria-hidden="true">↗</span></button></div>
   <main id="main" class="main-shell" tabindex="-1"></main>
-  <footer class="site-footer"><span>一餐一动，都是生活的印记。</span><span>日常有迹 · 原「饭饭签」</span></footer>
+  <footer class="site-footer"><span>数据仅存本机，记得备份。</span><span>日常有迹</span></footer>
   <nav class="mobile-nav" aria-label="手机导航">
     <a href="#today" data-view="today"><span data-icon="journal"></span>记录</a>
     <a href="#trends" data-view="trends"><span data-icon="chart"></span>趋势</a>

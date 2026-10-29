@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" fill="none">
+<defs><linearGradient id="yogurt" x1="80" y1="42" x2="111" y2="94" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFCF2"/><stop offset="1" stop-color="#E8DCC4"/></linearGradient><linearGradient id="fruit" x1="38" y1="52" x2="64" y2="90" gradientUnits="userSpaceOnUse"><stop stop-color="#E4AD94"/><stop offset="1" stop-color="#CE9079"/></linearGradient></defs>
+<path d="M18 61c-1-28 25-44 50-34 24 10 40-10 57 4 23 19 25 43 8 60-19 19-43 6-64 12-28 7-49-14-51-42Z" fill="#F7E9DF"/>
+<ellipse cx="80" cy="96" rx="55" ry="8" fill="#E8D2BF" opacity=".55"/>
+<path d="m76 46 7 44c1 7 29 7 30 0l7-44H76Z" fill="url(#yogurt)"/><ellipse cx="98" cy="46" rx="22" ry="9" fill="#E8DAC2"/><ellipse cx="98" cy="45" rx="18" ry="6" fill="#FFFDF5"/>
+<path d="m80 69 2 11h32l2-11H80Z" fill="#D4DDBB"/>
+<g fill="#BDA27F"><ellipse cx="89" cy="45" rx="3" ry="1.5" transform="rotate(-20 89 45)"/><ellipse cx="102" cy="44" rx="3" ry="1.5" transform="rotate(15 102 44)"/><ellipse cx="96" cy="48" rx="3" ry="1.5"/></g>
+<path d="M53 53c-20-10-32 7-24 25 7 17 16 17 23 13 8 4 18 1 22-15 4-16-5-29-21-23Z" fill="url(#fruit)"/>
+<path d="M52 55c-3-10 0-16 6-20" stroke="#8B8F62" stroke-width="3" stroke-linecap="round"/><path d="M54 43c5-12 17-11 23-6-6 11-14 13-23 6Z" fill="#97AC77"/>
+<path d="M35 66c-2 5-1 10 2 14" stroke="#F5CCB6" stroke-width="3" stroke-linecap="round"/>
+<g fill="#8C8CA3"><circle cx="70" cy="93" r="6"/><circle cx="80" cy="96" r="5"/><circle cx="68" cy="101" r="4.5"/></g>
+<path d="m122 32-9 39" stroke="#BCA58A" stroke-width="3" stroke-linecap="round"/><ellipse cx="124" cy="26" rx="5" ry="10" transform="rotate(15 124 26)" fill="#C7B297"/>
+</svg>

@@ -1,0 +1,170 @@
+/* Touch and motion layer. It does not change or store journal records. */
+:root {
+  --journal-spring: cubic-bezier(.2, .78, .2, 1);
+  --journal-native-top: 0px;
+  --journal-native-bottom: 0px;
+}
+
+html { scroll-padding-top: 90px; }
+button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
+button, nav a { -webkit-user-select: none; user-select: none; }
+button { touch-action: manipulation; }
+
+.journal-tactile { position: relative; isolation: isolate; }
+.journal-motion-ready .journal-tactile {
+  transition: transform 180ms var(--journal-spring), box-shadow 180ms ease,
+    background-color 160ms ease, border-color 160ms ease;
+}
+.journal-motion-ready .journal-tactile.is-pressed {
+  transform: translateY(1px) scale(.972) !important;
+}
+.journal-motion-ready .metric-card.is-pressed,
+.journal-motion-ready .history-row.is-pressed { transform: scale(.984) !important; }
+.journal-motion-ready .day-button.is-pressed,
+.journal-motion-ready .calendar-day.is-pressed { transform: scale(.94) !important; }
+.journal-ripple-host { overflow: hidden; }
+.journal-ripple {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+  transform: scale(.15);
+  mix-blend-mode: multiply;
+  animation: journal-ripple 460ms ease-out both;
+}
+.button.primary .journal-ripple { background: #fff8de; mix-blend-mode: screen; }
+@keyframes journal-ripple {
+  0% { transform: scale(.12); opacity: .13; }
+  68% { opacity: .055; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+.main-shell { transform-origin: 50% 20px; }
+#main:focus { outline: none; }
+.week-strip, .calendar-grid { touch-action: pan-y pinch-zoom; }
+.journal-motion-ready .meal-illustration img {
+  transition: transform 350ms var(--journal-spring);
+}
+@media (hover: hover) {
+  .journal-motion-ready .meal-block:hover .meal-illustration img {
+    transform: translateY(-2px) rotate(-2deg) scale(1.025);
+  }
+}
+
+.mobile-nav { isolation: isolate; }
+.mobile-nav a, .mobile-nav > button { position: relative; z-index: 1; }
+.journal-motion-ready .mobile-nav .active:before { display: none; }
+.journal-nav-indicator {
+  position: absolute;
+  top: 5px;
+  left: 0;
+  width: 57px;
+  height: 46px;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 16px;
+  background: #e9ebdca8;
+  box-shadow: inset 0 0 0 1px #dfe3ca66;
+  opacity: 0;
+  transition: transform 300ms var(--journal-spring), width 300ms var(--journal-spring),
+    opacity 160ms ease;
+}
+.journal-motion-ready .journal-nav-indicator.is-visible { opacity: 1; }
+.journal-motion-ready .mobile-nav .icon {
+  transition: transform 240ms var(--journal-spring), stroke-width 160ms ease;
+}
+.journal-motion-ready .mobile-nav .active .icon { transform: translateY(-1px); }
+
+/* Progressive dialog exit animation; older WebViews keep normal native close behavior. */
+.journal-motion-ready dialog {
+  opacity: 0;
+  transform: translateY(14px) scale(.985);
+  transition: opacity 180ms ease, transform 240ms var(--journal-spring),
+    overlay 180ms allow-discrete, display 180ms allow-discrete;
+}
+.journal-motion-ready dialog[open] { opacity: 1; transform: none; }
+.journal-motion-ready dialog:not([open]),
+.journal-motion-ready dialog:not([open])::backdrop { pointer-events: none; }
+.journal-motion-ready dialog::backdrop {
+  transition: background-color 180ms ease, overlay 180ms allow-discrete,
+    display 180ms allow-discrete;
+}
+@starting-style {
+  .journal-motion-ready dialog[open] { opacity: 0; transform: translateY(16px) scale(.985); }
+}
+.journal-dialog-open .mobile-nav { pointer-events: none; }
+.native-keyboard-open .mobile-nav {
+  transform: translateY(115%);
+  opacity: 0;
+  pointer-events: none;
+}
+.native-keyboard-open .site-footer { padding-bottom: 25px; }
+.native-keyboard-open .main-shell { padding-bottom: 20px; }
+.native-keyboard-open #toast { bottom: 24px; }
+.native-keyboard-open dialog[open] {
+  top: 0;
+  bottom: auto;
+  margin-block: 12px;
+}
+
+@media (max-width: 720px) {
+  html { overscroll-behavior-x: none; }
+  body { overflow-x: clip; }
+  .mobile-nav {
+    padding-bottom: max(12px, env(safe-area-inset-bottom), var(--journal-native-bottom));
+    transition: transform 220ms var(--journal-spring), opacity 180ms ease;
+  }
+  .mobile-nav a, .mobile-nav > button { min-height: 47px; }
+  .main-shell { padding-bottom: 35px; }
+  .intro:not(.trends-intro) {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .intro:not(.trends-intro) > div:first-child { min-width: 0; }
+  .intro:not(.trends-intro) .intro-actions { margin: 0; gap: 0; }
+  .intro:not(.trends-intro) .quick-actions { display: none; }
+  .intro:not(.trends-intro) .intro-actions:has(> .quick-actions:only-child) { display: none; }
+  .intro:not(.trends-intro) .text-button { min-height: 40px; white-space: nowrap; }
+  .site-footer { padding-bottom: calc(100px + max(env(safe-area-inset-bottom), var(--journal-native-bottom))); }
+  .meal-add { min-width: 33px; min-height: 33px; }
+  .meal-block .tiny-button { min-width: 30px; min-height: 32px; }
+  .meal-block .entry-actions { gap: 1px; }
+  .calendar-day { min-height: 49px; }
+  .icon-button { min-height: 36px; min-width: 32px; }
+  .date-toolbar .icon-button { min-width: 30px; }
+  .field input, .field textarea, .field select { font-size: 16px; }
+  dialog {
+    max-height: min(calc(var(--journal-viewport-height, 100dvh) - 32px), 760px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .dialog-inner { padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+  .field input, .field textarea, .field select { scroll-margin-block: 16px; }
+  .form-actions .button { min-height: 48px; }
+  .journal-dialog-open .mobile-nav { opacity: .25; }
+}
+
+body.android-app { overscroll-behavior-y: none; }
+body.android-app .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  padding-top: var(--journal-native-top);
+  background: #f5f1e8f5;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+body.android-app .brand small { letter-spacing: 1px; }
+body.android-app .local-note { color: #9a8a6e; }
+body.android-app .toast { bottom: calc(98px + max(env(safe-area-inset-bottom), var(--journal-native-bottom))); }
+
+@media (prefers-reduced-motion: reduce) {
+  .journal-tactile, .journal-nav-indicator, .meal-illustration img, .mobile-nav,
+  dialog, dialog::backdrop { transition: none !important; }
+  .journal-tactile.is-pressed { transform: none !important; }
+  .journal-ripple { display: none !important; animation: none !important; }
+}

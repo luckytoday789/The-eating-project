@@ -2,6 +2,7 @@
   "use strict";
   const C = window.JournalCore;
   const STORAGE_KEY = "daily-traces:v1";
+  const nativeApp = Boolean(window.AndroidJournal);
   const $ = (selector, scope = document) => scope.querySelector(selector);
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
   const clone = (value) => JSON.parse(JSON.stringify(value));
@@ -41,10 +42,33 @@
   const dialog = $("#editor");
   const state = { store: C.emptyStore(), demo: null, date: today(), view: "today", range: 30, month: today().slice(0, 7), storageError: "", pendingImport: null };
   let toastTimer;
+  let pendingUndo = null;
 
   function readStorage() {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw === null ? C.emptyStore() : C.validateStore(JSON.parse(raw));
+    if (raw !== null) {
+      try { return C.validateStore(JSON.parse(raw)); }
+      catch (error) {
+        if (!nativeApp) throw error;
+        const recovered = readNativeSnapshot();
+        if (!recovered) throw error;
+        // Keep the damaged text for recovery before restoring the native atomic copy.
+        try { localStorage.setItem(`${STORAGE_KEY}:recovery`, raw); } catch { }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(recovered));
+        return recovered;
+      }
+    }
+    const recovered = readNativeSnapshot();
+    if (recovered) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(recovered));
+      return recovered;
+    }
+    return C.emptyStore();
+  }
+  function readNativeSnapshot() {
+    if (!nativeApp || typeof window.AndroidJournal.loadSnapshot !== "function") return null;
+    try { const json = window.AndroidJournal.loadSnapshot(); return json ? C.validateStore(JSON.parse(json)) : null; }
+    catch { return null; }
   }
   try { state.store = readStorage(); } catch (error) {
     state.storageError = "无法读取记录，现有数据未被覆盖。请导出原始备份并检查存储权限。";
@@ -58,19 +82,32 @@
   const pretty = (value) => Number(value).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
   const uid = () => typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   const now = () => new Date().toISOString();
-  function toast(message, error = false) {
+  function toast(message, error = false, undo = null) {
     const element = $("#toast");
     clearTimeout(toastTimer);
+    pendingUndo = undo;
     element.textContent = message;
+    if (undo) {
+      const button = document.createElement("button");
+      button.type = "button"; button.dataset.action = "undo-delete"; button.textContent = "撤销";
+      element.append(button);
+    }
     element.classList.toggle("error", error);
     element.hidden = false;
-    toastTimer = setTimeout(() => { element.hidden = true; }, error ? 6500 : 3000);
+    toastTimer = setTimeout(() => { element.hidden = true; pendingUndo = null; }, undo ? 8000 : error ? 6500 : 3000);
   }
   function persist(next) {
     try {
       const clean = C.validateStore(next);
       if (state.demo) state.demo = clean;
-      else { localStorage.setItem(STORAGE_KEY, JSON.stringify(clean)); state.store = clean; }
+      else {
+        const json = JSON.stringify(clean);
+        localStorage.setItem(STORAGE_KEY, json);
+        state.store = clean;
+        if (nativeApp && typeof window.AndroidJournal.saveSnapshot === "function") {
+          try { window.AndroidJournal.saveSnapshot(json); } catch { /* Primary storage already succeeded. */ }
+        }
+      }
       return true;
     } catch (error) {
       toast("保存失败：存储已满或不可用。请先备份，再检查存储权限。", true);
@@ -127,7 +164,7 @@
     const actions = `${state.demo ? "" : `<button class="text-button" data-action="demo">看看示例${icon("arrow")}</button>`}<div class="quick-actions" aria-label="快捷记录"><button class="button primary" data-action="add-meal">${icon("plus")}饮食</button><button class="button" data-action="weight">${icon("scale")}体重</button><button class="button" data-action="add-activity">${icon("move")}运动</button></div>`;
     return header('日常<em>记录</em>', "饮食、体重、运动，一处记录。", "SMALL MOMENTS, EVERY DAY", actions) + `
       <section class="daily-overview" aria-label="当日概览"><button class="metric-card metric-food" data-action="add-meal" aria-label="饮食 ${record.meals.length} 条，添加饮食"><span class="metric-top">${icon('bowl')}饮食记录<span class="metric-add">${icon('plus')}</span></span><strong>${record.meals.length}<small>条</small></strong><span class="metric-bottom">${new Set(record.meals.map(item => item.type)).size} 类餐次已记录<span>FOOD</span></span><span class="metric-decoration" aria-hidden="true"></span></button><button class="metric-card metric-weight" data-action="weight" aria-label="体重 ${record.weight ?? '未记录'}，记录体重"><span class="metric-top">${icon('scale')}体重<span class="metric-add">${icon('plus')}</span></span><strong>${record.weight === null ? '—' : pretty(record.weight)}<small>kg</small></strong><span class="metric-bottom">${record.weight === null ? '记下今天的体重' : '当天记录'}<span>BODY</span></span><span class="metric-decoration" aria-hidden="true"></span></button><button class="metric-card metric-motion" data-action="add-activity" aria-label="运动 ${pretty(minutes)} 分钟，添加运动"><span class="metric-top">${icon('move')}运动<span class="metric-add">${icon('plus')}</span></span><strong>${pretty(minutes)}<small>分钟</small></strong><span class="metric-bottom">${record.activities.length} 次活动<span>MOVE</span></span><span class="metric-decoration" aria-hidden="true"></span></button></section>
-      <div class="date-toolbar"><div class="date-control"><button class="icon-button" data-action="prev-day" aria-label="前一天">${icon("left")}</button><label class="date-input-wrap">${icon("calendar")}<input class="date-input" id="selected-date" type="date" value="${state.date}" min="1900-01-01" max="${today()}" aria-label="选择记录日期"></label><button class="icon-button" data-action="next-day" aria-label="后一天" ${state.date >= today() ? "disabled" : ""}>${icon("right")}</button><button class="today-tag" data-action="today">今天</button></div><span class="local-note">${icon("shield")}${state.demo ? "示例数据" : "仅保存在此浏览器"}</span></div>
+      <div class="date-toolbar"><div class="date-control"><button class="icon-button" data-action="prev-day" aria-label="前一天">${icon("left")}</button><label class="date-input-wrap">${icon("calendar")}<span class="date-display" aria-hidden="true">${dateLabel(state.date)}</span><input class="date-input" id="selected-date" type="date" value="${state.date}" min="1900-01-01" max="${today()}" aria-label="选择记录日期"></label><button class="icon-button" data-action="next-day" aria-label="后一天" ${state.date >= today() ? "disabled" : ""}>${icon("right")}</button><button class="today-tag" data-action="today">今天</button></div><span class="local-note">${icon("shield")}${state.demo ? "示例数据" : (nativeApp ? "本机离线记录" : "仅保存在此浏览器")}</span></div>
       ${weekStrip()}
       <div class="dashboard"><div class="column"><section class="panel meals-panel"><div class="panel-head"><div class="panel-heading"><span class="section-icon">${icon("bowl")}</span><div><h2>饮食记录</h2><p>三餐与加餐</p></div></div><span class="local-note">${record.meals.length} 条记录</span></div>${renderMeals(record)}<div class="panel-footnote">${icon("leaf")}支持补记、编辑与删除</div></section><section class="panel note-panel"><div class="panel-head"><div class="panel-heading"><span class="section-icon">${icon("note")}</span><div><h2>当日备注</h2><p></p></div></div><button class="tiny-button" data-action="note" aria-label="编辑当日备注">${icon("edit")}</button></div>${record.note ? `<p class="daily-note">${esc(record.note)}</p>` : '<p class="empty-note">点击右上角添加备注</p>'}</section></div>
       <div class="column">${renderWeight(record)}<section class="panel activity-panel"><div class="panel-head"><div class="panel-heading"><span class="section-icon orange">${icon("move")}</span><div><h2>运动记录</h2><p></p></div></div><button class="round-add" data-action="add-activity" aria-label="记录运动">${icon("plus")}</button></div><div class="activity-summary"><strong>${pretty(minutes)}</strong><span>分钟 · ${record.activities.length} 次活动</span></div>${record.activities.length ? record.activities.map(activityEntry).join("") : `<div class="activity-empty"><span class="section-icon orange">${icon("move")}</span><p>暂无运动记录<br>点击下方添加</p></div>`}<button class="text-button" data-action="add-activity" style="margin-top:16px">${icon("plus")}添加运动</button></section></div></div>
@@ -210,12 +247,31 @@
   }
   function options(entries, selected) { return entries.map(([value, label]) => `<option value="${value}" ${selected === value ? "selected" : ""}>${label}</option>`).join(""); }
   const formActions = (label = "保存记录") => `<p class="form-error" id="form-error" role="alert" hidden></p><div class="form-actions"><button class="button" type="button" data-action="close-dialog">取消</button><button class="button primary" type="submit">${label}${icon("arrow")}</button></div>`;
+  function recentMeals(type) {
+    const seen = new Set(), recent = [];
+    const dated = Object.entries(store().days).filter(([date]) => date <= state.date).sort(([a], [b]) => b.localeCompare(a));
+    for (const [, entry] of dated) {
+      for (const meal of [...entry.meals].reverse()) {
+        const key = `${meal.content}\n${meal.portion}`;
+        if (meal.type === type && !seen.has(key)) { seen.add(key); recent.push(meal); }
+        if (recent.length === 6) return recent;
+      }
+    }
+    return recent;
+  }
+  function recentMealChips(type) {
+    const meals = recentMeals(type);
+    return meals.length ? `<div class="recent-meals"><p>最近吃过 <small>点选填入，可修改</small></p><div class="input-chips">${meals.map(meal => `<button type="button" data-action="reuse-meal" data-content="${esc(meal.content)}" data-portion="${esc(meal.portion)}" title="${esc(meal.content)}">${esc(meal.content)}</button>`).join("")}</div></div>` : "";
+  }
+  function quickValues(name, values, unit = "") {
+    return `<div class="input-chips" aria-label="快捷选择${name === 'minutes' ? '运动时长' : '分量'}">${values.map(value => `<button type="button" data-action="quick-value" data-field="${name}" data-value="${esc(value)}">${esc(value)}${unit}</button>`).join("")}</div>`;
+  }
   function mealEditor(type, id) {
     const existing = id ? day().meals.find((item) => item.id === id) : null;
     const hour = new Date().getHours();
     const inferred = hour < 10 ? "breakfast" : hour < 15 ? "lunch" : hour < 21 ? "dinner" : "snack";
     const meal = existing ?? { type: type || inferred, content: "", portion: "", time: state.date === today() ? new Date().toTimeString().slice(0, 5) : ({ breakfast: "08:00", lunch: "12:00", dinner: "18:00", snack: "15:00" }[type || inferred]) };
-    showDialog(existing ? "编辑饮食" : "添加饮食", `${dateLabel(state.date, true)}`, `<form id="record-form" data-kind="meal" data-id="${esc(existing?.id || "")}"><div class="field-row"><label class="field">餐次<select name="type">${options(Object.entries(mealTypes).map(([key, value]) => [key, value[0]]), meal.type)}</select></label><label class="field">用餐时间<input type="time" name="time" value="${esc(meal.time)}" required></label></div><label class="field">吃了什么<textarea name="content" maxlength="500" placeholder="比如：番茄鸡蛋面、一杯牛奶" required autofocus>${esc(meal.content)}</textarea></label><label class="field">分量<small>选填</small><input name="portion" maxlength="100" placeholder="比如：一碗、两个、小份" value="${esc(meal.portion)}"></label>${formActions()}</form>`);
+    showDialog(existing ? "编辑饮食" : "添加饮食", `${dateLabel(state.date, true)}`, `<form id="record-form" data-kind="meal" data-id="${esc(existing?.id || "")}"><div class="field-row"><label class="field">餐次<select name="type">${options(Object.entries(mealTypes).map(([key, value]) => [key, value[0]]), meal.type)}</select></label><label class="field">用餐时间<input type="time" name="time" value="${esc(meal.time)}" required></label></div>${recentMealChips(meal.type)}<label class="field">吃了什么<textarea name="content" maxlength="500" placeholder="比如：番茄鸡蛋面、一杯牛奶" required autofocus>${esc(meal.content)}</textarea></label><label class="field">分量<small>选填</small><input name="portion" maxlength="100" placeholder="比如：一碗、两个、小份" value="${esc(meal.portion)}"></label>${quickValues("portion", ["一份", "一碗", "小份", "半份"])}${formActions()}</form>`);
   }
   function weightEditor() {
     showDialog("记录体重", `${dateLabel(state.date, true)} · 每天一个数值`, `<form id="record-form" data-kind="weight"><label class="field">体重 <small>kg / 千克</small><input class="weight-input" type="number" name="weight" min="1" max="500" step="0.01" inputmode="decimal" placeholder="例如 55.2" value="${day().weight ?? ""}" required autofocus></label><p class="field-help">尽量在相近时间、相似状态下称重。</p>${formActions("保存体重")}</form>`);
@@ -223,7 +279,7 @@
   function activityEditor(id) {
     const existing = id ? day().activities.find((item) => item.id === id) : null;
     const activity = existing ?? { type: "walk", minutes: "", intensity: "easy", distance: null, note: "" };
-    showDialog(existing ? "编辑运动" : "添加运动", `${dateLabel(state.date, true)}`, `<form id="record-form" data-kind="activity" data-id="${esc(existing?.id || "")}"><label class="field">活动类型<select name="type">${options(Object.entries(activityTypes).map(([key, value]) => [key, value[0]]), activity.type)}</select></label><div class="field-row"><label class="field">时长<small>分钟</small><input name="minutes" type="number" min="1" max="1440" step="1" inputmode="numeric" placeholder="例如 30" value="${activity.minutes}" required autofocus></label><label class="field">身体感觉<select name="intensity">${options(Object.entries(intensities), activity.intensity)}</select></label></div><label class="field">距离<small>km · 选填</small><input type="number" name="distance" min="0.01" max="999" step="0.01" inputmode="decimal" placeholder="步行、跑步、骑行等" value="${activity.distance ?? ""}"></label><label class="field">备注<small>选填</small><textarea name="note" maxlength="500" placeholder="比如：晚饭后绕操场走了几圈">${esc(activity.note)}</textarea></label>${formActions()}</form>`);
+    showDialog(existing ? "编辑运动" : "添加运动", `${dateLabel(state.date, true)}`, `<form id="record-form" data-kind="activity" data-id="${esc(existing?.id || "")}"><label class="field">活动类型<select name="type">${options(Object.entries(activityTypes).map(([key, value]) => [key, value[0]]), activity.type)}</select></label><div class="field-row"><label class="field">时长<small>分钟</small><input name="minutes" type="number" min="1" max="1440" step="1" inputmode="numeric" placeholder="例如 30" value="${activity.minutes}" required autofocus></label><label class="field">身体感觉<select name="intensity">${options(Object.entries(intensities), activity.intensity)}</select></label></div>${quickValues("minutes", [15, 30, 45, 60], " 分钟")}<label class="field">距离<small>km · 选填</small><input type="number" name="distance" min="0.01" max="999" step="0.01" inputmode="decimal" placeholder="步行、跑步、骑行等" value="${activity.distance ?? ""}"></label><label class="field">备注<small>选填</small><textarea name="note" maxlength="500" placeholder="比如：晚饭后绕操场走了几圈">${esc(activity.note)}</textarea></label>${formActions()}</form>`);
   }
   function noteEditor() {
     showDialog("当日备注", `${dateLabel(state.date, true)}`, `<form id="record-form" data-kind="note"><label class="field">备注<textarea name="note" maxlength="1000" rows="5" placeholder="心情、身体感受或其他…" autofocus>${esc(day().note)}</textarea></label>${formActions()}</form>`);
@@ -234,15 +290,44 @@
     if (kind === "meal") { const item = record.meals.find((entry) => entry.id === id); if (!item) return; preview = item.content; label = "饮食记录"; }
     if (kind === "activity") { const item = record.activities.find((entry) => entry.id === id); if (!item) return; preview = `${activityTypes[item.type][0]} · ${item.minutes} 分钟`; label = "运动记录"; }
     if (kind === "weight") { preview = `${record.weight} kg`; label = "当天体重"; }
-    showDialog(`删除这条${label}？`, `${dateLabel(state.date)} · 删除后无法从当前设备撤销`, `<p class="delete-preview">${esc(preview)}</p><div class="form-actions"><button class="button" data-action="close-dialog">保留记录</button><button class="button danger" data-action="confirm-delete" data-kind="${kind}" data-id="${esc(id || "")}">确认删除</button></div>`);
+    showDialog(`删除这条${label}？`, `${dateLabel(state.date)} · 删除后 8 秒内可撤销`, `<p class="delete-preview">${esc(preview)}</p><div class="form-actions"><button class="button" data-action="close-dialog">保留记录</button><button class="button danger" data-action="confirm-delete" data-kind="${kind}" data-id="${esc(id || "")}">确认删除</button></div>`);
+  }
+  function undoDelete() {
+    const undo = pendingUndo;
+    if (!undo || undo.demo !== Boolean(state.demo)) return;
+    try {
+      const next = state.demo ? clone(state.demo) : readStorage();
+      const entry = next.days[undo.date] ?? C.emptyDay();
+      if (undo.kind === "weight") {
+        if (entry.weight !== null) { toast("当天已有新体重，已保留新记录。", true); return; }
+        entry.weight = undo.item;
+      } else {
+        const key = undo.kind === "meal" ? "meals" : "activities";
+        if (entry[key].some(item => item.id === undo.item.id)) { toast("这条记录已存在"); return; }
+        entry[key].push(undo.item);
+      }
+      entry.updatedAt = now(); next.days[undo.date] = entry;
+      if (persist(next)) { render(); toast(`已恢复 ${dateLabel(undo.date)}的记录`); }
+    } catch { toast("恢复失败，请检查本机存储。", true); }
   }
   function dataDialog() {
     if (state.demo) { showDialog("你正在查看示例", "示例中的数据独立存放，不会进入你的日常记录。", '<p class="notice">返回自己的记录后，即可导出或恢复个人备份。</p><div class="form-actions"><button class="button primary" data-action="exit-demo">返回我的记录</button></div>'); return; }
     const entries = Object.values(state.store.days);
     const total = entries.reduce((sum, entry) => sum + entry.meals.length + entry.activities.length + (entry.weight !== null ? 1 : 0), 0);
-    showDialog("数据与备份", "", `<p class="notice">你的饮食、体重和运动数据仅保存在当前浏览器，不会上传到网站或 GitHub。不同手机、浏览器之间不会自动同步；清理浏览器数据或使用无痕模式可能丢失记录。</p><div class="data-stats"><span><strong>${entries.length}</strong> 天记录</span><span><strong>${total}</strong> 条饮食 / 运动 / 体重</span></div><section class="data-card"><h3>导出备份</h3><p>导出 JSON 文件，可在其他设备恢复。</p><button class="button soft" data-action="export">${icon("download")}导出我的记录</button></section><section class="data-card"><h3>导入备份</h3><p>重复记录会合并，保留本机已有的体重与备注，不清空记录。</p><label class="button" for="import-file">${icon("upload")}选择 JSON 备份</label><input id="import-file" class="data-native-input" type="file" accept="application/json,.json" aria-label="选择日常有迹备份文件"></section>${state.storageError ? '<button class="text-button" data-action="raw-backup">导出无法读取的原始数据</button>' : ""}<p class="notice">公开的是网站，个人记录只在本机。</p>`);
+    showDialog("数据与备份", "", `<p class="notice">${nativeApp ? "记录只保存在本机，无需联网。卸载应用会删除本机数据，请先导出备份。网页版记录可通过 JSON 备份导入。" : "记录只保存在当前浏览器，不会上传。不同设备不会自动同步，清理浏览器前请导出备份。"}</p><div class="data-stats"><span><strong>${entries.length}</strong> 天记录</span><span><strong>${total}</strong> 条饮食 / 运动 / 体重</span></div><section class="data-card"><h3>导出备份</h3><p>导出 JSON 文件，可在其他设备恢复。</p><button class="button soft" data-action="export">${icon("download")}导出我的记录</button></section><section class="data-card"><h3>导入备份</h3><p>重复记录会合并，保留本机已有的体重与备注，不清空记录。</p><label class="button" for="import-file">${icon("upload")}选择 JSON 备份</label><input id="import-file" class="data-native-input" type="file" accept="application/json,.json" aria-label="选择日常有迹备份文件"></section>${state.storageError ? '<button class="text-button" data-action="raw-backup">导出无法读取的原始数据</button>' : ""}${experienceSettings()}<p class="notice">个人记录仅存本机</p>`);
   }
-  function download(content, filename) {
+  function experienceSettings() {
+    const preferences = window.JournalMotion?.getPreferences() ?? { enabled: true, haptics: nativeApp };
+    let version = "网页版";
+    if (nativeApp) { try { version = `Android ${window.AndroidJournal.getVersion()}`; } catch { version = "Android"; } }
+    return `<section class="experience-card"><h3>使用手感</h3><label class="preference-row"><span><b>页面动效</b><small>${preferences.reducedMotion ? "系统已设置减少动态效果" : "轻翻页与按压反馈"}</small></span><input id="pref-motion" type="checkbox" role="switch" ${preferences.enabled ? "checked" : ""} aria-label="页面动效"></label><label class="preference-row"><span><b>点击触感</b><small>${nativeApp ? "遵循系统触感设置" : "需设备支持振动"}</small></span><input id="pref-haptics" type="checkbox" role="switch" ${preferences.haptics ? "checked" : ""} aria-label="点击触感"></label><p class="app-version">${version} · 日常有迹</p></section>`;
+  }
+  function download(content, filename, raw = false) {
+    if (nativeApp && typeof window.AndroidJournal.exportBackup === "function") {
+      if (raw && typeof window.AndroidJournal.exportRawBackup === "function") window.AndroidJournal.exportRawBackup(content, filename);
+      else window.AndroidJournal.exportBackup(content, filename);
+      return;
+    }
     const blob = new Blob([content], { type: "application/json;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -253,7 +338,7 @@
     try {
       const current = readStorage();
       download(JSON.stringify({ ...current, exportedAt: now(), app: "日常有迹" }, null, 2), `日常有迹-备份-${today()}.json`);
-      toast("已开始下载备份");
+      toast(nativeApp ? "请选择备份保存位置" : "已开始下载备份");
     } catch { toast("当前记录读取失败，请先导出原始数据。", true); }
   }
   async function importRecords(file) {
@@ -265,7 +350,7 @@
       const count = Object.keys(imported.days).length;
       if (!count) throw new Error("这份备份里还没有记录");
       state.pendingImport = imported;
-      showDialog("导入备份", "合并到当前浏览器", `<div class="import-confirm">这份文件包含 <strong>${count} 天</strong>的记录。<br>相同编号会合并，同一天已有的体重和备注会保留。</div><div class="form-actions"><button class="button" data-action="close-dialog">暂不恢复</button><button class="button primary" data-action="confirm-import">确认合并</button></div>`);
+      showDialog("导入备份", nativeApp ? "合并到本机记录" : "合并到当前浏览器", `<div class="import-confirm">这份文件包含 <strong>${count} 天</strong>的记录。<br>相同编号会合并，同一天已有的体重和备注会保留。</div><div class="form-actions"><button class="button" data-action="close-dialog">暂不恢复</button><button class="button primary" data-action="confirm-import">确认合并</button></div>`);
     } catch (error) { toast(`无法导入：${error instanceof SyntaxError ? "文件不是有效的 JSON 备份" : error.message}`, true); }
   }
   function demoStore() {
@@ -299,6 +384,21 @@
     if (button.dataset.range) { state.range = Number(button.dataset.range); render(); return; }
     const action = button.dataset.action, id = button.dataset.id;
     switch (action) {
+      case "reuse-meal": {
+        const form = $("#record-form");
+        if (!form || form.dataset.kind !== "meal") break;
+        form.elements.content.value = button.dataset.content;
+        form.elements.portion.value = button.dataset.portion;
+        $("#form-error", form).hidden = true;
+        document.querySelectorAll("[data-action=reuse-meal]").forEach(item => item.setAttribute("aria-pressed", String(item === button)));
+        break;
+      }
+      case "quick-value": {
+        const form = $("#record-form"), field = form?.elements.namedItem(button.dataset.field);
+        if (field) { field.value = button.dataset.value; field.dispatchEvent(new Event("input", { bubbles: true })); field.dispatchEvent(new Event("change", { bubbles: true })); }
+        break;
+      }
+      case "undo-delete": undoDelete(); break;
       case "add-meal": mealEditor(button.dataset.type); break;
       case "edit-meal": mealEditor(null, id); break;
       case "weight": weightEditor(); break;
@@ -310,7 +410,13 @@
       case "delete-weight": deleteEditor("weight"); break;
       case "confirm-delete": {
         const kind = button.dataset.kind;
-        changeDay((entry) => { if (kind === "weight") entry.weight = null; else { const key = kind === "meal" ? "meals" : "activities"; entry[key] = entry[key].filter((item) => item.id !== id); } }, "这条记录已删除"); break;
+        const undo = { kind, date: state.date, demo: Boolean(state.demo), item: null };
+        const deleted = changeDay((entry) => {
+          if (kind === "weight") { undo.item = entry.weight; entry.weight = null; }
+          else { const key = kind === "meal" ? "meals" : "activities"; undo.item = entry[key].find(item => item.id === id); entry[key] = entry[key].filter(item => item.id !== id); }
+        }, "这条记录已删除");
+        if (deleted && undo.item != null) toast("这条记录已删除", false, undo);
+        break;
       }
       case "prev-day": chooseDate(C.addDays(state.date, -1)); break;
       case "next-day": chooseDate(C.addDays(state.date, 1)); break;
@@ -322,7 +428,7 @@
       case "data": dataDialog(); break;
       case "export": exportRecords(); break;
       case "raw-backup": {
-        try { download(localStorage.getItem(STORAGE_KEY) ?? "{}", `日常有迹-原始数据-${today()}.json`); } catch { toast("浏览器拒绝读取存储，请检查浏览器的存储权限。", true); }
+        try { download(localStorage.getItem(STORAGE_KEY) ?? "{}", `日常有迹-原始数据-${today()}.json`, true); } catch { toast("无法读取存储，请检查设备存储权限。", true); }
         break;
       }
       case "confirm-import": {
@@ -338,6 +444,11 @@
     }
   });
   document.addEventListener("change", (event) => {
+    if (event.target.id === "pref-motion") window.JournalMotion?.setEnabled(event.target.checked);
+    if (event.target.id === "pref-haptics") {
+      window.JournalMotion?.setHapticsEnabled(event.target.checked);
+      if (event.target.checked) window.JournalMotion?.haptic("selection");
+    }
     if (event.target.id === "selected-date") { const valid = C.isDate(event.target.value) && event.target.value <= today(); if (valid) chooseDate(event.target.value); else { toast("请选择今天或之前的有效日期。", true); render(); } }
     if (event.target.id === "import-file") importRecords(event.target.files[0]);
   });
@@ -373,6 +484,20 @@
     render();
     main.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: "auto" });
+  });
+  window.JournalHandleBack = () => {
+    if (dialog.open) { dialog.close(); return true; }
+    if (location.hash && location.hash !== "#today") { location.hash = "today"; return true; }
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    return false;
+  };
+  let lastDeviceDay = today();
+  window.addEventListener("journal:native-resume", () => {
+    const current = today();
+    if (!dialog.open && current !== lastDeviceDay && state.date === lastDeviceDay) {
+      state.date = current; state.month = current.slice(0, 7); render();
+    }
+    lastDeviceDay = current;
   });
   window.matchMedia("(max-width: 720px)").addEventListener("change", () => {
     if (!dialog.open) render();

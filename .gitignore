@@ -1,0 +1,8 @@
+/private/
+/.build-cache/
+/.android-test/
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/app/src/main/assets/www/
+/release/*.sha256

@@ -2,7 +2,11 @@
 
 由「饭饭签」改版的个人饮食、体重与运动记录工具。
 
+安卓安装、迁移与构建说明见项目根目录 `docs/ANDROID.md`；安装包位于 `release/`。
+
 公开网址：https://luckytoday789.github.io/The-eating-project/
+
+安卓下载：https://luckytoday789.github.io/The-eating-project/downloads/
 
 ## 使用
 

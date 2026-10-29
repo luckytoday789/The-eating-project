@@ -52,4 +52,62 @@ for (const mutate of [
   assert.throws(() => C.validateStore(invalid));
 }
 assert.deepEqual(C.validateStore({ version: 1, days: { '2026-10-29': C.emptyDay() } }).days, {});
-console.log('Data checks passed: dates, round-trip, range stats, idempotent merges, validation and duplicate IDs.');
+// Pre-feature exports must remain readable, without altering their daily records.
+const legacy = { version: 1, days: { '2026-10-29': day } };
+const migrated = C.validateStore(legacy);
+assert.deepEqual(migrated.preferences, { allergens: [], avoid: [] });
+assert.deepEqual(migrated.favorites, []);
+assert.deepEqual(migrated.days, C.validateStore(base).days);
+
+const personalized = JSON.parse(JSON.stringify(base));
+personalized.preferences = { allergens: [' 牛奶 ', '牛奶'], avoid: ['香菜'] };
+personalized.favorites = [
+  { type: 'lunch', content: '番茄鸡蛋面', portion: '一碗', updatedAt: '2026-10-29T10:00:00+08:00' },
+  { type: 'lunch', content: ' 番茄鸡蛋面 ', portion: '一碗', updatedAt: '2026-10-29T10:01:00+08:00' },
+];
+const cleanPersonalized = C.validateStore(personalized);
+assert.deepEqual(cleanPersonalized.preferences, { allergens: ['牛奶'], avoid: ['香菜'] });
+assert.equal(cleanPersonalized.favorites.length, 1);
+assert.equal(cleanPersonalized.favorites[0].updatedAt, '2026-10-29T02:00:00.000Z');
+assert.deepEqual(C.validateStore(JSON.parse(JSON.stringify(cleanPersonalized))), cleanPersonalized);
+assert.equal(C.favoriteKey({ type: 'lunch', content: ' Rice ', portion: 'One Bowl' }), C.favoriteKey({ type: 'lunch', content: 'rice', portion: 'one bowl' }));
+
+const importedPersonalized = C.emptyStore();
+importedPersonalized.preferences = { allergens: ['牛奶', '花生'], avoid: [' 香菜 ', '芹菜'] };
+importedPersonalized.favorites = [
+  { type: 'lunch', content: '番茄鸡蛋面', portion: '一碗', updatedAt: '2026-10-29T20:00:00Z' },
+  { type: 'dinner', content: '菌菇面', portion: '', updatedAt: '2026-10-29T20:00:00Z' },
+];
+const mergedPersonalized = C.mergeStores(cleanPersonalized, importedPersonalized);
+assert.deepEqual(mergedPersonalized.preferences, { allergens: ['牛奶', '花生'], avoid: ['香菜', '芹菜'] });
+assert.equal(mergedPersonalized.favorites.length, 2);
+assert.equal(mergedPersonalized.favorites[0].updatedAt, cleanPersonalized.favorites[0].updatedAt);
+assert.deepEqual(C.mergeStores(mergedPersonalized, importedPersonalized), mergedPersonalized);
+const full = C.emptyStore();
+full.preferences.allergens = Array.from({ length: 30 }, (_, i) => `过敏词${i}`);
+full.favorites = Array.from({ length: 40 }, (_, i) => ({ type: 'lunch', content: `常吃${i}`, portion: '', updatedAt: '' }));
+const extra = C.emptyStore();
+extra.preferences.allergens = ['新词'];
+extra.favorites = [{ type: 'dinner', content: '新餐食', portion: '', updatedAt: '' }];
+assert.deepEqual(C.mergeStores(full, extra).preferences.allergens, full.preferences.allergens);
+assert.deepEqual(C.mergeStores(full, extra).favorites, full.favorites);
+const removedFavorite = JSON.parse(JSON.stringify(mergedPersonalized));
+removedFavorite.favorites = removedFavorite.favorites.filter(item => C.favoriteKey(item) !== C.favoriteKey({ type: 'dinner', content: '菌菇面', portion: '' }));
+assert.equal(C.validateStore(removedFavorite).favorites.length, 1);
+
+for (const mutate of [
+  data => data.preferences = null,
+  data => data.preferences.allergens = '牛奶',
+  data => data.preferences.allergens = [' '],
+  data => data.preferences.avoid = ['a'.repeat(41)],
+  data => data.preferences.avoid = Array.from({ length: 31 }, (_, i) => `词${i}`),
+  data => data.favorites = {},
+  data => data.favorites = Array.from({ length: 41 }, (_, i) => ({ type: 'lunch', content: `餐食${i}`, portion: '' })),
+  data => data.favorites = [{ type: 'unknown', content: '面', portion: '' }],
+  data => data.favorites = [{ type: 'lunch', content: ' ', portion: '' }],
+  data => data.favorites = [{ type: 'lunch', content: '面', portion: '', updatedAt: 'not a timestamp' }],
+]) {
+  const invalid = JSON.parse(JSON.stringify(base)); mutate(invalid);
+  assert.throws(() => C.validateStore(invalid));
+}
+console.log('Data checks passed: dates, round-trip, preferences, favorites, bounded validation and idempotent merges.');

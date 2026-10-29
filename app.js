@@ -25,6 +25,7 @@
     move: '<path d="m3 16 5-4 4 2 2-8 4 3h3M8 12l-2-5 4-4 5 3m-4 8 5 6m-8-5-4 6"/><circle cx="17" cy="3" r="1.5"/>',
     leaf: '<path d="M5 20c0-9 4-16 15-16 0 12-5 17-12 13M5 20 16 9"/>',
     edit: '<path d="m14 5 5 5M4 20l5-1L21 7l-4-4L5 15l-1 5Z"/>',
+    star: '<path d="m12 2 3.1 6.3 7 .9-5 4.9 1.2 7-6.3-3.4-6.3 3.4 1.2-7-5-4.9 7-.9L12 2Z"/>',
     trash: '<path d="M3 6h18M9 6V3h6v3m-10 0 1 15h12l1-15M10 10v7m4-7v7"/>',
     download: '<path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/>',
     upload: '<path d="M12 16V4m-5 5 5-5 5 5M4 16v5h16v-5"/>',
@@ -176,7 +177,7 @@
   function renderMeals(record) {
     return Object.entries(mealTypes).map(([type, [name, english, symbol]], index) => {
       const entries = record.meals.filter((meal) => meal.type === type).sort((a, b) => a.time.localeCompare(b.time));
-      return `<section class="meal-section meal-block ${type}"><div class="meal-heading"><div class="meal-type"><span class="meal-number">0${index + 1}</span><h3>${name}<small>${english}</small></h3></div><button class="meal-add" data-action="add-meal" data-type="${type}" aria-label="添加${name}">${icon("plus")}</button></div><div class="meal-card-row"><div class="meal-illustration"><img src="./assets/${type}.svg" alt="" width="160" height="120" loading="lazy"></div><div class="meal-records">${entries.length ? entries.map((meal) => `<article class="meal-entry"><div class="entry-content"><p class="entry-title">${esc(meal.content)}</p><div class="entry-meta"><span>${esc(meal.time)}</span>${meal.portion ? `<span>${esc(meal.portion)}</span>` : ""}</div></div><div class="entry-actions"><button class="tiny-button" data-action="edit-meal" data-id="${esc(meal.id)}" aria-label="编辑${esc(name)}：${esc(meal.content)}">${icon("edit")}</button><button class="tiny-button" data-action="delete-meal" data-id="${esc(meal.id)}" aria-label="删除${esc(name)}：${esc(meal.content)}">${icon("trash")}</button></div></article>`).join("") : `<button class="meal-empty" data-action="add-meal" data-type="${type}" aria-label="记录${name}"><small>还未记录</small><span>记录${name} ${icon('arrow')}</span></button>`}</div></div></section>`;
+      return `<section class="meal-section meal-block ${type}"><div class="meal-heading"><div class="meal-type"><span class="meal-number">0${index + 1}</span><h3>${name}<small>${english}</small></h3></div><button class="meal-add" data-action="add-meal" data-type="${type}" aria-label="添加${name}">${icon("plus")}</button></div><div class="meal-card-row"><div class="meal-illustration"><img src="./assets/${type}.svg" alt="" width="160" height="120" loading="lazy"></div><div class="meal-records">${entries.length ? entries.map((meal) => `<article class="meal-entry"><div class="entry-content"><p class="entry-title">${esc(meal.content)}</p><div class="entry-meta"><span>${esc(meal.time)}</span>${meal.portion ? `<span>${esc(meal.portion)}</span>` : ""}</div></div><div class="entry-actions"><button class="tiny-button favorite-toggle ${store().favorites?.some(favorite => favoriteKey(favorite) === favoriteKey(meal)) ? "is-favorite" : ""}" data-action="toggle-favorite" data-id="${esc(meal.id)}" aria-label="${store().favorites?.some(favorite => favoriteKey(favorite) === favoriteKey(meal)) ? "取消收藏" : "收藏"}${esc(name)}：${esc(meal.content)}" aria-pressed="${Boolean(store().favorites?.some(favorite => favoriteKey(favorite) === favoriteKey(meal)))}" ${state.demo ? "disabled title=\"示例模式不收藏\"" : ""}>${icon("star")}</button><button class="tiny-button" data-action="edit-meal" data-id="${esc(meal.id)}" aria-label="编辑${esc(name)}：${esc(meal.content)}">${icon("edit")}</button><button class="tiny-button" data-action="delete-meal" data-id="${esc(meal.id)}" aria-label="删除${esc(name)}：${esc(meal.content)}">${icon("trash")}</button></div></article>`).join("") : `<button class="meal-empty" data-action="add-meal" data-type="${type}" aria-label="记录${name}"><small>还未记录</small><span>记录${name} ${icon('arrow')}</span></button>`}</div></div></section>`;
     }).join("");
   }
   function renderWeight(record) {
@@ -261,7 +262,28 @@
   }
   function recentMealChips(type) {
     const meals = recentMeals(type);
-    return meals.length ? `<div class="recent-meals"><p>最近吃过 <small>点选填入，可修改</small></p><div class="input-chips">${meals.map(meal => `<button type="button" data-action="reuse-meal" data-content="${esc(meal.content)}" data-portion="${esc(meal.portion)}" title="${esc(meal.content)}">${esc(meal.content)}</button>`).join("")}</div></div>` : "";
+    return `<div class="recent-meals" ${meals.length ? "" : "hidden"}><p>最近吃过 <small>点选填入，可修改</small></p><div class="input-chips">${meals.map(meal => `<button class="journal-tactile" type="button" data-action="reuse-meal" data-content="${esc(meal.content)}" data-portion="${esc(meal.portion)}" title="${esc(meal.content)}">${esc(meal.content)}</button>`).join("")}</div></div>`;
+  }
+  const favoriteKey = (item) => C.favoriteKey(item);
+  function favoriteMealChips(type) {
+    const favorites = [...(store().favorites ?? [])].sort((a, b) => Number(b.type === type) - Number(a.type === type));
+    return `<div class="favorite-meals" ${favorites.length ? "" : "hidden"}><p>${icon("star")} 常吃餐食 <small>点选填入，可修改</small></p><div class="input-chips">${favorites.map(meal => `<button class="journal-tactile" type="button" data-action="reuse-meal" data-content="${esc(meal.content)}" data-portion="${esc(meal.portion)}" title="${esc(meal.content)}">${esc(meal.content)}</button>`).join("")}</div></div>`;
+  }
+  function updateFoodWarning() {
+    const form = $("#record-form[data-kind=meal]");
+    if (!form) return;
+    const warning = $("#food-warning", form);
+    if (!warning) return;
+    const content = String(form.elements.namedItem("content")?.value ?? "").toLocaleLowerCase("zh-CN");
+    const preferences = store().preferences ?? { allergens: [], avoid: [] };
+    const allergies = preferences.allergens.filter(term => content.includes(term.toLocaleLowerCase("zh-CN")));
+    const avoided = preferences.avoid.filter(term => content.includes(term.toLocaleLowerCase("zh-CN")));
+    const label = (terms) => `${terms.slice(0, 3).join("、")}${terms.length > 3 ? `等 ${terms.length} 项` : ""}`;
+    const matches = [allergies.length ? `过敏词「${label(allergies)}」` : "", avoided.length ? `忌口词「${label(avoided)}」` : ""].filter(Boolean);
+    const message = matches.length ? `文字匹配到${matches.join("；")}。请自行核对实际配料。` : "";
+    warning.hidden = !message;
+    warning.classList.toggle("is-allergy", allergies.length > 0);
+    if (warning.textContent !== message) warning.textContent = message;
   }
   function quickValues(name, values, unit = "") {
     return `<div class="input-chips" aria-label="快捷选择${name === 'minutes' ? '运动时长' : '分量'}">${values.map(value => `<button type="button" data-action="quick-value" data-field="${name}" data-value="${esc(value)}">${esc(value)}${unit}</button>`).join("")}</div>`;
@@ -271,7 +293,8 @@
     const hour = new Date().getHours();
     const inferred = hour < 10 ? "breakfast" : hour < 15 ? "lunch" : hour < 21 ? "dinner" : "snack";
     const meal = existing ?? { type: type || inferred, content: "", portion: "", time: state.date === today() ? new Date().toTimeString().slice(0, 5) : ({ breakfast: "08:00", lunch: "12:00", dinner: "18:00", snack: "15:00" }[type || inferred]) };
-    showDialog(existing ? "编辑饮食" : "添加饮食", `${dateLabel(state.date, true)}`, `<form id="record-form" data-kind="meal" data-id="${esc(existing?.id || "")}"><div class="field-row"><label class="field">餐次<select name="type">${options(Object.entries(mealTypes).map(([key, value]) => [key, value[0]]), meal.type)}</select></label><label class="field">用餐时间<input type="time" name="time" value="${esc(meal.time)}" required></label></div>${recentMealChips(meal.type)}<label class="field">吃了什么<textarea name="content" maxlength="500" placeholder="比如：番茄鸡蛋面、一杯牛奶" required autofocus>${esc(meal.content)}</textarea></label><label class="field">分量<small>选填</small><input name="portion" maxlength="100" placeholder="比如：一碗、两个、小份" value="${esc(meal.portion)}"></label>${quickValues("portion", ["一份", "一碗", "小份", "半份"])}${formActions()}</form>`);
+    showDialog(existing ? "编辑饮食" : "添加饮食", `${dateLabel(state.date, true)}`, `<form id="record-form" data-kind="meal" data-id="${esc(existing?.id || "")}"><div class="field-row"><label class="field">餐次<select name="type">${options(Object.entries(mealTypes).map(([key, value]) => [key, value[0]]), meal.type)}</select></label><label class="field">用餐时间<input type="time" name="time" value="${esc(meal.time)}" required></label></div>${favoriteMealChips(meal.type)}${recentMealChips(meal.type)}<label class="field">吃了什么<textarea name="content" maxlength="500" placeholder="比如：番茄鸡蛋面、一杯牛奶" required autofocus>${esc(meal.content)}</textarea></label><p id="food-warning" class="food-warning" role="status" aria-live="polite" hidden></p><label class="field">分量<small>选填</small><input name="portion" maxlength="100" placeholder="比如：一碗、两个、小份" value="${esc(meal.portion)}"></label>${quickValues("portion", ["一份", "一碗", "小份", "半份"])}${formActions()}</form>`);
+    updateFoodWarning();
   }
   function weightEditor() {
     showDialog("记录体重", `${dateLabel(state.date, true)} · 每天一个数值`, `<form id="record-form" data-kind="weight"><label class="field">体重 <small>kg / 千克</small><input class="weight-input" type="number" name="weight" min="1" max="500" step="0.01" inputmode="decimal" placeholder="例如 55.2" value="${day().weight ?? ""}" required autofocus></label><p class="field-help">尽量在相近时间、相似状态下称重。</p>${formActions("保存体重")}</form>`);
@@ -310,11 +333,53 @@
       if (persist(next)) { render(); toast(`已恢复 ${dateLabel(undo.date)}的记录`); }
     } catch { toast("恢复失败，请检查本机存储。", true); }
   }
+  function dietSettingsCard() {
+    const preferences = state.store.preferences ?? { allergens: [], avoid: [] };
+    const favoriteCount = state.store.favorites?.length ?? 0;
+    return `<section class="data-card diet-card"><div><h3>饮食偏好</h3><p>过敏 ${preferences.allergens.length} 项 · 忌口 ${preferences.avoid.length} 项 · 常吃 ${favoriteCount} 项</p></div><button class="button soft" data-action="edit-diet">${icon("edit")}设置</button></section>`;
+  }
+  function favoriteManager() {
+    const favorites = state.store.favorites ?? [];
+    return `<section class="favorite-manager" ${favorites.length ? "" : "hidden"}><h3>常吃餐食（${favorites.length}）</h3><div class="favorite-list">${favorites.map(item => `<div class="favorite-pill"><span>${mealTypes[item.type][0]} · ${esc(item.content)}${item.portion ? ` · ${esc(item.portion)}` : ""}</span><button type="button" data-action="remove-favorite" data-key="${encodeURIComponent(favoriteKey(item))}" aria-label="取消收藏${esc(item.content)}">${icon("close")}</button></div>`).join("")}</div><p id="favorite-status" role="status" aria-live="polite"></p></section>`;
+  }
+  function dietEditor() {
+    if (state.demo) { dataDialog(); return; }
+    const preferences = state.store.preferences ?? { allergens: [], avoid: [] };
+    showDialog("饮食偏好", "录入餐食时显示文字提醒", `<form id="record-form" data-kind="preferences"><label class="field">过敏食物或配料<small>每项用逗号或换行隔开</small><textarea name="allergens" maxlength="1800" rows="3" placeholder="例如：花生、牛奶" autofocus>${esc(preferences.allergens.join("\n"))}</textarea></label><label class="field">不想吃的食物<small>忌口 · 选填</small><textarea name="avoid" maxlength="1800" rows="3" placeholder="例如：香菜、辣椒">${esc(preferences.avoid.join("\n"))}</textarea></label>${favoriteManager()}<p class="diet-help">只按记录文字提醒，请自行核对菜品配料。</p>${formActions("保存偏好")}</form>`);
+  }
+  function parseDietTerms(raw, label) {
+    const terms = [], seen = new Set();
+    for (const value of String(raw).split(/[\n,，、;；]+/u)) {
+      const term = value.trim();
+      if (!term) continue;
+      if (term.length > 40) throw new Error(`${label}每项最多 40 个字`);
+      const key = term.toLocaleLowerCase("zh-CN");
+      if (!seen.has(key)) { seen.add(key); terms.push(term); }
+      if (terms.length > 30) throw new Error(`${label}最多填写 30 项`);
+    }
+    return terms;
+  }
+  function toggleFavorite(id) {
+    if (state.demo) { toast("先退出示例，再收藏自己的餐食。", true); return; }
+    if (state.storageError) { toast("请先处理存储问题。", true); return; }
+    try {
+      const next = readStorage();
+      const meal = next.days[state.date]?.meals.find(item => item.id === id);
+      if (!meal) { toast("这条饮食记录已更新，请重新打开。", true); return; }
+      const index = next.favorites.findIndex(item => favoriteKey(item) === favoriteKey(meal));
+      if (index >= 0) next.favorites.splice(index, 1);
+      else {
+        if (next.favorites.length >= 40) { toast("常吃餐食已满 40 项，请先取消一个。", true); return; }
+        next.favorites.push({ type: meal.type, content: meal.content, portion: meal.portion, updatedAt: now() });
+      }
+      if (persist(next)) { render(); toast(index >= 0 ? "已取消收藏" : "已加入常吃餐食"); }
+    } catch { toast("无法读取记录，请先在数据与备份中检查。", true); }
+  }
   function dataDialog() {
     if (state.demo) { showDialog("你正在查看示例", "示例中的数据独立存放，不会进入你的日常记录。", '<p class="notice">返回自己的记录后，即可导出或恢复个人备份。</p><div class="form-actions"><button class="button primary" data-action="exit-demo">返回我的记录</button></div>'); return; }
     const entries = Object.values(state.store.days);
     const total = entries.reduce((sum, entry) => sum + entry.meals.length + entry.activities.length + (entry.weight !== null ? 1 : 0), 0);
-    showDialog("数据与备份", "", `<p class="notice">${nativeApp ? "记录只保存在本机，无需联网。卸载应用会删除本机数据，请先导出备份。网页版记录可通过 JSON 备份导入。" : "记录只保存在当前浏览器，不会上传。不同设备不会自动同步，清理浏览器前请导出备份。"}</p><div class="data-stats"><span><strong>${entries.length}</strong> 天记录</span><span><strong>${total}</strong> 条饮食 / 运动 / 体重</span></div><section class="data-card"><h3>导出备份</h3><p>导出 JSON 文件，可在其他设备恢复。</p><button class="button soft" data-action="export">${icon("download")}导出我的记录</button></section><section class="data-card"><h3>导入备份</h3><p>重复记录会合并，保留本机已有的体重与备注，不清空记录。</p><label class="button" for="import-file">${icon("upload")}选择 JSON 备份</label><input id="import-file" class="data-native-input" type="file" accept="application/json,.json" aria-label="选择日常有迹备份文件"></section>${state.storageError ? '<button class="text-button" data-action="raw-backup">导出无法读取的原始数据</button>' : ""}${experienceSettings()}<p class="notice">个人记录仅存本机</p>`);
+    showDialog("数据与备份", "", `<p class="notice">${nativeApp ? "记录只保存在本机，无需联网。卸载应用会删除本机数据，请先导出备份。网页版记录可通过 JSON 备份导入。" : "记录只保存在当前浏览器，不会上传。不同设备不会自动同步，清理浏览器前请导出备份。"}</p><div class="data-stats"><span><strong>${entries.length}</strong> 天记录</span><span><strong>${total}</strong> 条饮食 / 运动 / 体重</span></div>${dietSettingsCard()}<section class="data-card"><h3>导出备份</h3><p>导出 JSON 文件，可在其他设备恢复。</p><button class="button soft" data-action="export">${icon("download")}导出我的记录</button></section><section class="data-card"><h3>导入备份</h3><p>重复记录会合并，保留本机已有的体重与备注；常吃餐食和饮食偏好也会合并。</p><label class="button" for="import-file">${icon("upload")}选择 JSON 备份</label><input id="import-file" class="data-native-input" type="file" accept="application/json,.json" aria-label="选择日常有迹备份文件"></section>${state.storageError ? '<button class="text-button" data-action="raw-backup">导出无法读取的原始数据</button>' : ""}${experienceSettings()}<p class="notice">个人记录仅存本机</p>`);
   }
   function experienceSettings() {
     const preferences = window.JournalMotion?.getPreferences() ?? { enabled: true, haptics: nativeApp };
@@ -348,9 +413,9 @@
       if (file.size > 5 * 1024 * 1024) throw new Error("备份不能大于 5MB");
       const imported = C.validateStore(JSON.parse(await file.text()));
       const count = Object.keys(imported.days).length;
-      if (!count) throw new Error("这份备份里还没有记录");
+      if (!count && !imported.favorites.length && !imported.preferences.allergens.length && !imported.preferences.avoid.length) throw new Error("这份备份里还没有记录、收藏或饮食偏好");
       state.pendingImport = imported;
-      showDialog("导入备份", nativeApp ? "合并到本机记录" : "合并到当前浏览器", `<div class="import-confirm">这份文件包含 <strong>${count} 天</strong>的记录。<br>相同编号会合并，同一天已有的体重和备注会保留。</div><div class="form-actions"><button class="button" data-action="close-dialog">暂不恢复</button><button class="button primary" data-action="confirm-import">确认合并</button></div>`);
+      showDialog("导入备份", nativeApp ? "合并到本机记录" : "合并到当前浏览器", `<div class="import-confirm">这份文件包含 <strong>${count} 天</strong>记录、<strong>${imported.favorites.length} 项</strong>收藏和 <strong>${imported.preferences.allergens.length + imported.preferences.avoid.length} 条</strong>饮食偏好。<br>相同编号会合并，同一天已有的体重和备注会保留。</div><div class="form-actions"><button class="button" data-action="close-dialog">暂不恢复</button><button class="button primary" data-action="confirm-import">确认合并</button></div>`);
     } catch (error) { toast(`无法导入：${error instanceof SyntaxError ? "文件不是有效的 JSON 备份" : error.message}`, true); }
   }
   function demoStore() {
@@ -389,6 +454,7 @@
         if (!form || form.dataset.kind !== "meal") break;
         form.elements.content.value = button.dataset.content;
         form.elements.portion.value = button.dataset.portion;
+        form.elements.content.dispatchEvent(new Event("input", { bubbles: true }));
         $("#form-error", form).hidden = true;
         document.querySelectorAll("[data-action=reuse-meal]").forEach(item => item.setAttribute("aria-pressed", String(item === button)));
         break;
@@ -401,6 +467,7 @@
       case "undo-delete": undoDelete(); break;
       case "add-meal": mealEditor(button.dataset.type); break;
       case "edit-meal": mealEditor(null, id); break;
+      case "toggle-favorite": toggleFavorite(id); break;
       case "weight": weightEditor(); break;
       case "add-activity": activityEditor(); break;
       case "edit-activity": activityEditor(id); break;
@@ -426,6 +493,25 @@
       case "current-month": state.month = today().slice(0, 7); render(); break;
       case "close-dialog": dialog.close(); state.pendingImport = null; break;
       case "data": dataDialog(); break;
+      case "edit-diet": dietEditor(); break;
+      case "remove-favorite": {
+        if (state.demo) break;
+        try {
+          const key = decodeURIComponent(button.dataset.key), next = readStorage();
+          const index = next.favorites.findIndex(item => favoriteKey(item) === key);
+          if (index < 0) { toast("这项收藏已更新，请重新打开。", true); break; }
+          next.favorites.splice(index, 1);
+          if (persist(next)) {
+            button.closest(".favorite-pill")?.remove();
+            const manager = $(".favorite-manager", dialog);
+            if (manager) { $("h3", manager).textContent = `常吃餐食（${next.favorites.length}）`; manager.hidden = !next.favorites.length; }
+            const status = $("#favorite-status", dialog);
+            if (status) status.textContent = "已取消收藏";
+            render();
+          }
+        } catch { toast("无法更新收藏，请重新打开。", true); }
+        break;
+      }
       case "export": exportRecords(); break;
       case "raw-backup": {
         try { download(localStorage.getItem(STORAGE_KEY) ?? "{}", `日常有迹-原始数据-${today()}.json`, true); } catch { toast("无法读取存储，请检查设备存储权限。", true); }
@@ -434,8 +520,14 @@
       case "confirm-import": {
         if (!state.pendingImport) return;
         try {
-          const next = C.mergeStores(readStorage(), state.pendingImport);
-          if (persist(next)) { state.pendingImport = null; dialog.close(); render(); toast("备份已合并到你的记录"); }
+          const incoming = state.pendingImport;
+          const next = C.mergeStores(readStorage(), incoming);
+          const skipped = ["allergens", "avoid"].some(key => incoming.preferences[key].some(term => !next.preferences[key].some(saved => saved.toLowerCase() === term.toLowerCase())))
+            || incoming.favorites.some(item => !next.favorites.some(saved => favoriteKey(saved) === favoriteKey(item)));
+          if (persist(next)) {
+            state.pendingImport = null; dialog.close(); render();
+            toast(skipped ? "记录已合并；部分偏好或收藏超过上限，未导入" : "备份已合并到你的记录");
+          }
         } catch (error) { toast(`合并失败：${error.message}`, true); }
         break;
       }
@@ -444,6 +536,12 @@
     }
   });
   document.addEventListener("change", (event) => {
+    const mealForm = event.target.closest?.("#record-form[data-kind=meal]");
+    if (mealForm && event.target.name === "type") {
+      const recent = $(".recent-meals", mealForm), favorites = $(".favorite-meals", mealForm);
+      if (recent) recent.outerHTML = recentMealChips(event.target.value);
+      if (favorites) favorites.outerHTML = favoriteMealChips(event.target.value);
+    }
     if (event.target.id === "pref-motion") window.JournalMotion?.setEnabled(event.target.checked);
     if (event.target.id === "pref-haptics") {
       window.JournalMotion?.setHapticsEnabled(event.target.checked);
@@ -451,6 +549,9 @@
     }
     if (event.target.id === "selected-date") { const valid = C.isDate(event.target.value) && event.target.value <= today(); if (valid) chooseDate(event.target.value); else { toast("请选择今天或之前的有效日期。", true); render(); } }
     if (event.target.id === "import-file") importRecords(event.target.files[0]);
+  });
+  document.addEventListener("input", (event) => {
+    if (event.target.matches?.("#record-form[data-kind=meal] [name=content]")) updateFoodWarning();
   });
   document.addEventListener("submit", (event) => {
     const form = event.target;
@@ -460,6 +561,17 @@
     const kind = form.dataset.kind;
     const error = $("#form-error", form);
     const fail = (message) => { error.textContent = message; error.hidden = false; };
+    if (kind === "preferences") {
+      if (state.demo) { fail("请先退出示例模式。"); return; }
+      try {
+        const allergens = parseDietTerms(values.allergens, "过敏词");
+        const avoid = parseDietTerms(values.avoid, "忌口词");
+        const next = readStorage();
+        next.preferences = { allergens, avoid };
+        if (persist(next)) { dialog.close(); render(); toast("饮食偏好已保存"); }
+      } catch (cause) { fail(cause.message || "饮食偏好保存失败"); }
+      return;
+    }
     if (kind === "meal") {
       if (!values.content.trim()) { fail("请填写饮食内容。"); return; }
       const meal = { id: form.dataset.id || uid(), type: values.type, time: values.time, content: values.content.trim(), portion: values.portion.trim(), updatedAt: now() };

@@ -42,10 +42,13 @@ $tasks = @('assembleRelease')
 if ($Tests) { $tasks += @('assembleDebug','assembleDebugAndroidTest') }
 & (Join-Path $toolRoot 'gradle\gradle-8.11.1\bin\gradle.bat') -p (Join-Path $projectRoot 'android') --offline --no-daemon --console=plain @tasks
 if ($LASTEXITCODE -ne 0) { throw 'Android build failed' }
-$output = Join-Path $release '日常有迹-1.0.0.apk'
+$versionSource = [IO.File]::ReadAllText((Join-Path $projectRoot 'android\app\build.gradle'))
+$version = [regex]::Match($versionSource, "versionName\s+'([^']+)'").Groups[1].Value
+if (!$version) { throw 'Android versionName was not found' }
+$output = Join-Path $release "日常有迹-$version.apk"
 Copy-Item -LiteralPath (Join-Path $projectRoot 'android\app\build\outputs\apk\release\app-release.apk') -Destination $output
 & (Join-Path $toolRoot 'android-sdk\build-tools\35.0.0\apksigner.bat') verify --verbose --print-certs $output
 if ($LASTEXITCODE -ne 0) { throw 'APK signature verification failed' }
 $hash = (Get-FileHash -LiteralPath $output -Algorithm SHA256).Hash.ToLowerInvariant()
-[IO.File]::WriteAllText(($output + '.sha256'),"$hash  日常有迹-1.0.0.apk`n",(New-Object Text.UTF8Encoding $false))
+[IO.File]::WriteAllText(($output + '.sha256'),"$hash  日常有迹-$version.apk`n",(New-Object Text.UTF8Encoding $false))
 Write-Output "APK: $output"

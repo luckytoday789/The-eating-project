@@ -18,7 +18,7 @@
     return localDate(date);
   }
   function emptyDay() { return { weight: null, meals: [], activities: [], note: "", updatedAt: "" }; }
-  function emptyStore() { return { version: VERSION, days: {} }; }
+  function emptyStore() { return { version: VERSION, days: {}, preferences: { allergens: [], avoid: [] }, favorites: [] }; }
   function hasData(day) { return day && (day.weight !== null || day.meals.length > 0 || day.activities.length > 0 || day.note.trim().length > 0); }
   function text(value, label, max = 500, required = false) {
     if (typeof value !== "string" || value.length > max || (required && !value.trim())) throw new Error(`${label}格式不正确`);
@@ -33,9 +33,47 @@
     // A backup may use an offset or omit milliseconds. Normalize before comparing.
     return value ? new Date(value).toISOString() : "";
   }
+  function preferenceTerms(value, label) {
+    if (value === undefined) return [];
+    if (!Array.isArray(value) || value.length > 30) throw new Error(`${label}不能超过30项`);
+    const seen = new Set(), terms = [];
+    for (const raw of value) {
+      const term = text(raw, label, 40, true);
+      const key = term.toLowerCase();
+      if (!seen.has(key)) { seen.add(key); terms.push(term); }
+    }
+    return terms;
+  }
+  function favoriteKey(item) {
+    return [item.type, item.content, item.portion ?? ""].map((part) => String(part).trim().toLowerCase()).join("\u0000");
+  }
+  function cleanFavorites(value) {
+    if (value === undefined) return [];
+    if (!Array.isArray(value) || value.length > 40) throw new Error("常吃餐食不能超过40项");
+    const seen = new Set(), favorites = [];
+    for (const item of value) {
+      if (!item || typeof item !== "object" || Array.isArray(item) || !MEALS.includes(item.type)) throw new Error("常吃餐食类型不正确");
+      const clean = {
+        type: item.type,
+        content: text(item.content, "常吃餐食", 500, true),
+        portion: text(item.portion ?? "", "分量", 100),
+        updatedAt: stamp(item.updatedAt ?? ""),
+      };
+      const key = favoriteKey(clean);
+      if (!seen.has(key)) { seen.add(key); favorites.push(clean); }
+    }
+    return favorites;
+  }
   function validateStore(input) {
     if (!input || typeof input !== "object" || input.version !== VERSION || !input.days || typeof input.days !== "object" || Array.isArray(input.days)) throw new Error("请选择由日常有迹导出的 JSON 备份");
     const result = emptyStore();
+    const preferences = input.preferences === undefined ? {} : input.preferences;
+    if (!preferences || typeof preferences !== "object" || Array.isArray(preferences)) throw new Error("饮食偏好格式不正确");
+    result.preferences = {
+      allergens: preferenceTerms(preferences.allergens, "过敏词"),
+      avoid: preferenceTerms(preferences.avoid, "忌口词"),
+    };
+    result.favorites = cleanFavorites(input.favorites);
     const entries = Object.entries(input.days);
     if (entries.length > 36600) throw new Error("备份包含的日期过多");
     for (const [date, day] of entries) {
@@ -69,6 +107,22 @@
   function mergeStores(current, incoming) {
     const merged = validateStore(current);
     const clean = validateStore(incoming);
+    for (const key of ["allergens", "avoid"]) {
+      const present = new Set(merged.preferences[key].map((term) => term.toLowerCase()));
+      for (const term of clean.preferences[key]) {
+        const normalized = term.toLowerCase();
+        if (!present.has(normalized) && merged.preferences[key].length < 30) {
+          merged.preferences[key].push(term); present.add(normalized);
+        }
+      }
+    }
+    const favoriteKeys = new Set(merged.favorites.map(favoriteKey));
+    for (const favorite of clean.favorites) {
+      const key = favoriteKey(favorite);
+      if (!favoriteKeys.has(key) && merged.favorites.length < 40) {
+        merged.favorites.push(favorite); favoriteKeys.add(key);
+      }
+    }
     for (const [date, added] of Object.entries(clean.days)) {
       if (!merged.days[date]) { merged.days[date] = added; continue; }
       const existing = merged.days[date];
@@ -99,5 +153,5 @@
       sessions: entries.reduce((sum, [, day]) => sum + day.activities.length, 0),
     };
   }
-  root.JournalCore = Object.freeze({ VERSION, MEALS, ACTIVITIES, localDate, isDate, addDays, emptyDay, emptyStore, hasData, validateStore, mergeStores, stats });
+  root.JournalCore = Object.freeze({ VERSION, MEALS, ACTIVITIES, localDate, isDate, addDays, emptyDay, emptyStore, hasData, favoriteKey, validateStore, mergeStores, stats });
 })(globalThis);
